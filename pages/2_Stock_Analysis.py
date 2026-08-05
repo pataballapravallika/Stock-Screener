@@ -37,7 +37,8 @@ COMPANIES = {
 }
 
 BENCHMARKS = {
-    "NSE": "^NSEI",
+    # Use NIFTY 500 for Indian comparison when available
+    "NSE": "^CRSLDX",
     "US": "^GSPC",
 }
 
@@ -217,6 +218,33 @@ st.divider()
 # ============================================================
 
 st.subheader("Price Chart")
+# EPS YoY data (quarterly) - used for chart overlay if available
+eps_q_dates = []
+eps_yoy_pct = []
+try:
+    ticker_q = yf.Ticker(symbol)
+    q_income = ticker_q.quarterly_financials
+    if q_income is not None and not q_income.empty:
+        # find EPS label
+        eps_label = next((l for l in ["Diluted EPS", "Basic EPS", "EPS"] if l in q_income.index), None)
+        if eps_label:
+            cols = list(q_income.columns)
+            # columns are recent->older; convert to datetimes when possible
+            for i, period in enumerate(cols):
+                try:
+                    dt = pd.to_datetime(period)
+                except Exception:
+                    try:
+                        dt = pd.to_datetime(str(period))
+                    except Exception:
+                        dt = None
+                if dt is not None:
+                    eps_q_dates.append(dt)
+                    val = safe_float(q_income.loc[eps_label, period])
+                    eps_yoy_pct.append(val)
+except Exception:
+    eps_q_dates = []
+    eps_yoy_pct = []
 
 # Filter dataframe based on timeframe selection
 if timeframe != "MAX":
@@ -350,7 +378,68 @@ price_fig.update_layout(
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
 )
 
+# EPS overlay toggle
+show_eps = st.checkbox("Show Quarterly EPS YoY on Price Chart")
+if show_eps and eps_q_dates and any(v is not None for v in eps_yoy_pct):
+    # prepare series aligned to quarter dates; convert yoy to percent
+    eps_dates = [d for d, v in zip(eps_q_dates, eps_yoy_pct) if d is not None and v is not None]
+    eps_vals = [v * 100 for v in eps_yoy_pct if v is not None]
+    if eps_dates and eps_vals:
+        price_fig.add_trace(
+            go.Scatter(x=eps_dates, y=eps_vals, mode="lines+markers", name="EPS YoY %", line=dict(color="orange", width=2), marker=dict(size=6)),
+            row=1, col=1, secondary_y=True
+        )
+        # configure secondary y axis for EPS percent
+        price_fig.update_yaxes(title_text="EPS YoY %", secondary_y=True, tickformat=".2f")
+
 st.plotly_chart(price_fig, use_container_width=True)
+
+st.subheader("Quarterly EPS Growth")
+try:
+    ticker = yf.Ticker(symbol)
+    q_income = ticker.quarterly_financials
+    if q_income is not None and not q_income.empty:
+        quarter_labels = [pd.to_datetime(period).strftime("%Y-%m-%d") if not isinstance(period, str) else period for period in q_income.columns]
+
+        def _extract_series(df, labels):
+            for label in labels:
+                if label in df.index:
+                    return [safe_float(df.loc[label, period]) for period in df.columns]
+            return []
+
+        eps_series = _extract_series(q_income, ["Diluted EPS", "Basic EPS", "EPS"])
+        yoy_eps = []
+        for idx in range(len(eps_series)):
+            if idx + 4 < len(eps_series) and eps_series[idx] is not None and eps_series[idx + 4] is not None and eps_series[idx + 4] != 0:
+                yoy_eps.append((eps_series[idx] - eps_series[idx + 4]) / abs(eps_series[idx + 4]))
+            else:
+                yoy_eps.append(None)
+
+        if eps_series:
+            eps_fig = make_subplots(specs=[[{"secondary_y": True}]])
+            eps_fig.add_trace(
+                go.Scatter(x=quarter_labels, y=eps_series, mode="lines+markers", name="EPS", line=dict(color="blue", width=2)),
+                secondary_y=False,
+            )
+            eps_fig.add_trace(
+                go.Scatter(x=quarter_labels, y=[v * 100 if v is not None else None for v in yoy_eps], mode="lines+markers", name="EPS YoY Growth", line=dict(color="orange", width=2, dash="dash")),
+                secondary_y=True,
+            )
+            eps_fig.update_layout(
+                title="Quarterly EPS and YoY EPS Growth",
+                xaxis_title="Quarter",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                height=450,
+            )
+            eps_fig.update_yaxes(title_text="EPS", secondary_y=False)
+            eps_fig.update_yaxes(title_text="YoY Growth (%)", secondary_y=True, tickformat=".2%")
+            st.plotly_chart(eps_fig, use_container_width=True)
+        else:
+            st.info("Quarterly EPS data unavailable for charting.")
+    else:
+        st.info("Quarterly fundamentals unavailable for EPS growth chart.")
+except Exception:
+    st.info("Unable to render EPS growth chart.")
 
 # ============================================================
 # RELATIVE STRENGTH

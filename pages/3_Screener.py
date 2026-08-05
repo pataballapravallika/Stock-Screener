@@ -142,9 +142,14 @@ def analyse_stock(company, symbol, config, use_fundamentals, include_banks):
         result["EPS Growth"] = fund.get("EarningsGrowth")
         result["ROE"] = fund.get("ROE")
         result["ROCE"] = fund.get("ROCE")
+        result["ROA"] = fund.get("ROA")
         result["Debt/Equity"] = fund.get("DebtEquity")
         result["Altman Z"] = fund.get("AltmanZScore")
         result["Piotroski"] = fund.get("PiotroskiFScore")
+        result["Shares Outstanding"] = fund.get("SharesOutstanding")
+        result["Float Shares"] = fund.get("FloatShares")
+        result["Promoter %"] = fund.get("InsidersPercentHeld")
+        result["Institutional %"] = fund.get("InstitutionsPercentHeld")
     else:
         result["Fundamental Score"] = 0
         result["Fundamental Signal"] = "N/A"
@@ -152,9 +157,14 @@ def analyse_stock(company, symbol, config, use_fundamentals, include_banks):
         result["EPS Growth"] = None
         result["ROE"] = None
         result["ROCE"] = None
+        result["ROA"] = None
         result["Debt/Equity"] = None
         result["Altman Z"] = None
         result["Piotroski"] = None
+        result["Shares Outstanding"] = None
+        result["Float Shares"] = None
+        result["Promoter %"] = None
+        result["Institutional %"] = None
 
     scoring_config = ScoringConfig(
         technical_weight=technical_weight,

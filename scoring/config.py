@@ -105,8 +105,8 @@ def score_category(percentage):
 
 def signal_badge(signal):
     if signal == "BUY":
-        return "🟢 BUY"
+        return "BUY"
     elif signal == "SELL":
-        return "🔴 SELL"
+        return "SELL"
     else:
-        return "🟡 HOLD"
+        return "HOLD"

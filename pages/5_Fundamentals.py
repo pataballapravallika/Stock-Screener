@@ -87,6 +87,7 @@ if st.button("Load Fundamentals", type="primary"):
             "Market Cap", "Trailing P/E", "Forward P/E", "Price / Sales",
             "ROE", "ROCE", "ROA", "Debt / Equity", "Profit Margin",
             "Dividend Yield", "Revenue Growth", "Earnings Growth",
+            "Shares Outstanding", "Float Shares", "Promoter %", "Institutional %"
         ],
         "Value": [
             fund.get("MarketCap"),
@@ -101,6 +102,10 @@ if st.button("Load Fundamentals", type="primary"):
             fund.get("DividendYield"),
             fund.get("RevenueGrowth"),
             fund.get("EarningsGrowth"),
+            fund.get("SharesOutstanding"),
+            fund.get("FloatShares"),
+            fund.get("InsidersPercentHeld"),
+            fund.get("InstitutionsPercentHeld"),
         ]
     })
 
@@ -124,6 +129,14 @@ if st.button("Load Fundamentals", type="primary"):
             fmt_metric(fund.get("DividendYield"), lambda v: f"{v*100:.2f}%"),
             fmt_metric(fund.get("RevenueGrowth"), lambda v: f"{v*100:.2f}%"),
             fmt_metric(fund.get("EarningsGrowth"), lambda v: f"{v*100:.2f}%"),
+            fmt_metric(fund.get("SharesOutstanding"), lambda v: f"{int(v):,}"),
+            # If FloatShares is missing, try an estimate using insider/institution percentages
+            (lambda fv, so, ins_pct, inst_pct: fmt_metric(
+                fv if fv is not None else (
+                    int(so * (1 - (ins_pct or 0) - (inst_pct or 0))) if so is not None and (ins_pct is not None or inst_pct is not None) else None
+                ), lambda v: f"{int(v):,}"))(fund.get("FloatShares"), fund.get("SharesOutstanding"), fund.get("InsidersPercentHeld"), fund.get("InstitutionsPercentHeld")),
+            fmt_metric(fund.get("InsidersPercentHeld"), lambda v: f"{v*100:.2f}%"),
+            fmt_metric(fund.get("InstitutionsPercentHeld"), lambda v: f"{v*100:.2f}%"),
         ]
     })
     st.dataframe(display_metrics, use_container_width=True, hide_index=True)
