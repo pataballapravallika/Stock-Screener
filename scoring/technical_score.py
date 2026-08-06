@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from indicators.momentum import rsi, macd
 from indicators.trend import moving_averages, high_52_week, breakout as calc_breakout, bollinger_bands
+from indicators.trend import breakout_status
 from indicators.volatility import supertrend, adr
 from scoring.config import (
     ScoringConfig,
@@ -19,6 +20,7 @@ def compute_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["MACD"], df["MACD_Signal"], df["MACD_Hist"] = macd(df["Close"])
     df = high_52_week(df)
     df = calc_breakout(df)
+    df = breakout_status(df)
     df = bollinger_bands(df)
     df = adr(df)
     df = supertrend(df)
@@ -71,6 +73,16 @@ def score_technical(
     volume = row.get("Volume")
     volume_ma20 = row.get("Volume_MA20")
     supertrend = row.get("SuperTrend")
+
+    # EMA alignment: check if shorter EMAs are above longer EMAs (9 > 21 > 50 > 100 > 150 > 200)
+    ema_cols = ["EMA9", "EMA21", "EMA50", "EMA100", "EMA150", "EMA200"]
+    ema_vals = [row.get(c) for c in ema_cols]
+    ema_alignment = None
+    try:
+        if all(v is not None for v in ema_vals):
+            ema_alignment = all(ema_vals[i] > ema_vals[i+1] for i in range(len(ema_vals)-1))
+    except Exception:
+        ema_alignment = None
 
     if config.use_ma_trend:
         max_score += tc.price_above_ma200_weight
@@ -144,6 +156,9 @@ def score_technical(
             conditions["supertrend_bullish"] = True
         else:
             conditions["supertrend_bullish"] = False
+
+    # expose EMA alignment as an informational condition (no weight added by default)
+    conditions["ema_alignment"] = True if ema_alignment else False
 
     percentage = (score / max_score * 100) if max_score > 0 else 0.0
 

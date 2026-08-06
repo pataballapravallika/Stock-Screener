@@ -11,6 +11,7 @@ from fundamentals.ratios import (
     qoq_growth,
     yoy_growth,
 )
+from data.fetch_utils import is_quarterly_periods
 
 
 def safe_float(value):
@@ -31,6 +32,13 @@ def calculate_growth_metrics(income_stmt: pd.DataFrame, quarterly: bool = True) 
             periods = list(income_stmt.columns)
             if len(periods) == 0:
                 return {}
+
+            # validate that the provided periods are quarterly-like to avoid mixing annual/TTM values
+            try:
+                if not is_quarterly_periods(periods):
+                    return {}
+            except Exception:
+                pass
 
             latest = periods[0]
             prev = periods[1] if len(periods) > 1 else None

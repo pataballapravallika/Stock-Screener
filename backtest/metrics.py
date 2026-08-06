@@ -42,6 +42,19 @@ def sharpe_ratio(returns, risk_free_rate=0.05):
     return (returns.mean() * 252 - risk_free_rate) / (std * np.sqrt(252))
 
 
+def sortino_ratio(returns, risk_free_rate=0.05):
+    if returns is None or len(returns) == 0:
+        return 0
+    downside_returns = returns[returns < 0]
+    if len(downside_returns) == 0:
+        return 0
+    downside_std = downside_returns.std()
+    if downside_std == 0 or np.isnan(downside_std):
+        return 0
+    excess_return = returns.mean() * 252 - risk_free_rate
+    return excess_return / (downside_std * np.sqrt(252))
+
+
 def win_rate_from_trades(trade_returns):
     if not trade_returns:
         return 0
