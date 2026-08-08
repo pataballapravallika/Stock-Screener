@@ -21,19 +21,6 @@ COMPANIES = {
     "HCL Technologies": "HCLTECH.NS",
 }
 
-DEFAULT_CATALYST_META = {
-    "RELIANCE.NS": {"company": "Reliance Industries", "sector": "Energy", "industry": "Refineries/Petrochem", "market_cap": 1806314.0},
-    "TCS.NS": {"company": "Tata Consultancy Services", "sector": "Technology", "industry": "IT - Software", "market_cap": 887408.0},
-    "INFY.NS": {"company": "Infosys Limited", "sector": "Technology", "industry": "IT - Software", "market_cap": 475930.0},
-    "HDFCBANK.NS": {"company": "HDFC Bank Limited", "sector": "Financial Services", "industry": "Private Sector Bank", "market_cap": 1126417.0},
-    "ICICIBANK.NS": {"company": "ICICI Bank Limited", "sector": "Financial Services", "industry": "Private Sector Bank", "market_cap": 1019322.0},
-    "SBIN.NS": {"company": "State Bank of India", "sector": "Financial Services", "industry": "Public Sector Bank", "market_cap": 1012783.0},
-    "TATAMOTORS.NS": {"company": "Tata Motors Limited", "sector": "Automotive", "industry": "Automobiles", "market_cap": 345200.0},
-    "ITC.NS": {"company": "ITC Limited", "sector": "Consumer Goods", "industry": "FMCG", "market_cap": 358468.0},
-    "WIPRO.NS": {"company": "Wipro Limited", "sector": "Technology", "industry": "IT - Software", "market_cap": 185513.0},
-    "HCLTECH.NS": {"company": "HCL Technologies Limited", "sector": "Technology", "industry": "IT - Software", "market_cap": 367064.0},
-}
-
 CATALYST_TYPES = [
     "Order Wins / Book",
     "Product Launches",
@@ -52,23 +39,30 @@ company = st.selectbox("Company", list(COMPANIES.keys()))
 symbol = COMPANIES[company]
 
 fund = fetch_fundamentals(symbol) or {}
-meta = DEFAULT_CATALYST_META.get(symbol, {})
+ticker = yf.Ticker(symbol)
 
-company_name = fund.get("Company") or meta.get("company") or symbol
-sector = fund.get("Sector") or meta.get("sector") or "Technology"
-industry = fund.get("Industry") or meta.get("industry") or "IT Services"
-mcap = fund.get("MarketCap") or meta.get("market_cap") or 100000.0
+company_name = fund.get("Company") or symbol
+sector = fund.get("Sector") or "Technology"
+industry = fund.get("Industry") or "IT Services"
+
+mcap = fund.get("MarketCap")
+if not mcap:
+    try:
+        fi = getattr(ticker, "fast_info", {})
+        mc = fi.get("marketCap") or (ticker.info.get("marketCap") if hasattr(ticker, "info") else None)
+        if mc:
+            mcap = mc / 1e7
+    except Exception:
+        pass
 
 st.subheader(f"{company_name} — Catalysts")
 
 c1, c2, c3 = st.columns(3)
 c1.metric("Sector", sector)
 c2.metric("Industry", industry)
-c3.metric("Market Cap", f"₹{mcap:,.0f} Cr")
+c3.metric("Market Cap", f"₹{mcap:,.0f} Cr" if mcap else "N/A")
 
 st.divider()
-
-ticker = yf.Ticker(symbol)
 
 st.markdown("### Earnings & Dividend Calendar")
 try:

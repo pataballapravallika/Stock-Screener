@@ -33,10 +33,10 @@ def render_official_data_header(fund: Dict[str, Any]):
                     "Period": det.get("period"),
                     "Qtr/Year": det.get("quarter_or_year"),
                     "Report Date": det.get("report_date"),
-                    "Statement Type": det.get("consolidated"),
+                    "Statement Type": "Consolidated" if det.get("consolidated") else "Standalone",
                     "Reported Value": val_str,
-                    "Unit": det.get("unit"),
-                    "Source Type": det.get("source_type"),
+                    "Unit": str(det.get("unit") or "N/A"),
+                    "Source Type": str(det.get("source_type") or "N/A"),
                     "Official Filing Document": url if url and url != "N/A" else "Official Filing Record",
                 })
             if rows:
