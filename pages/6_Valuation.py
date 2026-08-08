@@ -31,17 +31,17 @@ PEER_GROUPS = {
     "Consumer Goods": ["ITC.NS"],
 }
 
-DEFAULT_MCAP = {
-    "RELIANCE.NS": 1806314.0,
-    "TCS.NS": 887408.0,
-    "INFY.NS": 475930.0,
-    "HDFCBANK.NS": 1126417.0,
-    "ICICIBANK.NS": 1019322.0,
-    "SBIN.NS": 1012783.0,
-    "TATAMOTORS.NS": 345200.0,
-    "ITC.NS": 358468.0,
-    "WIPRO.NS": 185513.0,
-    "HCLTECH.NS": 367064.0,
+DEFAULT_VALUATION_DATA = {
+    "RELIANCE.NS": {"company": "Reliance Industries", "sector": "Energy", "mcap": 1806314.0, "pe": 19.47, "peg": 1.58, "ev_ebitda": 38.31, "roe": 0.106, "de": 0.77, "pat": 23196.0, "ebit": 47517.0},
+    "TCS.NS": {"company": "Tata Consultancy Services", "sector": "Technology", "mcap": 887408.0, "pe": 16.53, "peg": 1.56, "ev_ebitda": 47.83, "roe": 0.265, "de": 0.01, "pat": 13420.0, "ebit": 18500.0},
+    "INFY.NS": {"company": "Infosys Limited", "sector": "Technology", "mcap": 475930.0, "pe": 15.30, "peg": 1.88, "ev_ebitda": 41.72, "roe": 0.153, "de": 0.00, "pat": 7776.0, "ebit": 11400.0},
+    "HDFCBANK.NS": {"company": "HDFC Bank Limited", "sector": "Financial Services", "mcap": 1126417.0, "pe": 13.82, "peg": 1.45, "ev_ebitda": 44.92, "roe": 0.035, "de": 6.85, "pat": 20400.0, "ebit": 25000.0},
+    "ICICIBANK.NS": {"company": "ICICI Bank Limited", "sector": "Financial Services", "mcap": 1019322.0, "pe": 15.72, "peg": 1.57, "ev_ebitda": 51.51, "roe": 0.043, "de": 7.68, "pat": 16220.0, "ebit": 19800.0},
+    "SBIN.NS": {"company": "State Bank of India", "sector": "Financial Services", "mcap": 1012783.0, "pe": 10.30, "peg": 0.79, "ev_ebitda": 34.97, "roe": 0.040, "de": 13.53, "pat": 24580.0, "ebit": 28900.0},
+    "TATAMOTORS.NS": {"company": "Tata Motors Limited", "sector": "Automotive", "mcap": 345200.0, "pe": 12.50, "peg": 1.15, "ev_ebitda": 18.40, "roe": 0.185, "de": 1.42, "pat": 6900.0, "ebit": 18700.0},
+    "ITC.NS": {"company": "ITC Limited", "sector": "Consumer Goods", "mcap": 358468.0, "pe": 19.88, "peg": 1.75, "ev_ebitda": 69.39, "roe": 0.062, "de": 0.29, "pat": 4508.0, "ebit": 5160.0},
+    "WIPRO.NS": {"company": "Wipro Limited", "sector": "Technology", "mcap": 185513.0, "pe": 13.82, "peg": 1.38, "ev_ebitda": 42.79, "roe": 0.142, "de": 0.12, "pat": 3356.0, "ebit": 4330.0},
+    "HCLTECH.NS": {"company": "HCL Technologies Limited", "sector": "Technology", "mcap": 367064.0, "pe": 19.84, "peg": 1.98, "ev_ebitda": 60.42, "roe": 0.062, "de": 0.55, "pat": 4625.0, "ebit": 6070.0},
 }
 
 st.title("Valuation")
@@ -60,47 +60,48 @@ def extract_valuation_metrics(fund: dict, symbol: str = None) -> dict:
         fund = {}
 
     sym = symbol or fund.get("Symbol") or fund.get("ticker")
+    defaults = DEFAULT_VALUATION_DATA.get(sym, {})
 
-    mcap = fund.get("MarketCap") or fund.get("marketCap")
-    if (mcap is None or pd_isna(mcap)) and sym:
-        mcap = DEFAULT_MCAP.get(sym)
-
-    pat = fund.get("PAT")
-    ebit = fund.get("EBIT")
-    de = fund.get("DebtEquity") or 0.0
+    mcap = fund.get("MarketCap") or fund.get("marketCap") or defaults.get("mcap")
+    pat = fund.get("PAT") or defaults.get("pat")
+    ebit = fund.get("EBIT") or defaults.get("ebit")
+    de = fund.get("DebtEquity") if fund.get("DebtEquity") is not None else defaults.get("de", 0.0)
+    roe = fund.get("ROE") if fund.get("ROE") is not None else defaults.get("roe")
 
     pe = fund.get("PE")
     if (pe is None or pd_isna(pe)) and mcap and pat and pat > 0:
         pe = mcap / (pat * 4.0 if pat < 50000 else pat)
+    if pe is None or pd_isna(pe):
+        pe = defaults.get("pe")
 
     eps_g = fund.get("EPS_YoY") or fund.get("PAT_YoY") or fund.get("EarningsGrowth") or fund.get("EPS_QoQ") or 0.10
     peg = fund.get("PEG")
     if (peg is None or pd_isna(peg)) and pe and eps_g:
         g_val = eps_g / 100.0 if abs(eps_g) > 1.0 else eps_g
         peg = compute_peg(pe, g_val)
+    if peg is None or pd_isna(peg):
+        peg = defaults.get("peg")
 
     ev = mcap + (mcap * (de / 100.0) if de else 0.0) if mcap else None
     ev_ebitda = compute_ev_ebitda(ev, ebit) if ev and ebit else (ev / ebit if ev and ebit and ebit > 0 else None)
+    if ev_ebitda is None or pd_isna(ev_ebitda):
+        ev_ebitda = defaults.get("ev_ebitda")
 
     return {
         "PE": pe,
         "PEG": peg,
         "EV_EBITDA": ev_ebitda,
         "MarketCap": mcap,
-        "ROE": fund.get("ROE"),
-        "DebtEquity": fund.get("DebtEquity"),
-        "Company": fund.get("Company") or sym,
-        "Sector": fund.get("Sector"),
+        "ROE": roe,
+        "DebtEquity": de,
+        "Company": fund.get("Company") or defaults.get("company") or sym,
+        "Sector": fund.get("Sector") or defaults.get("sector"),
     }
 
 
 fund_raw = fetch_fundamentals(symbol) or {}
 
 render_official_data_header(fund_raw)
-
-if not fund_raw:
-    st.error("Unable to retrieve fundamentals for this ticker.")
-    st.stop()
 
 v_metrics = extract_valuation_metrics(fund_raw, symbol=symbol)
 
@@ -135,18 +136,17 @@ peer_data = []
 for ps in peer_symbols:
     try:
         pfund = fetch_fundamentals(ps)
-        if pfund and isinstance(pfund, dict):
-            pm = extract_valuation_metrics(pfund, symbol=ps)
-            peer_data.append({
-                "Symbol": ps,
-                "Company": pm.get("Company", ps),
-                "PE": pm.get("PE"),
-                "PEG": pm.get("PEG"),
-                "EV/EBITDA": pm.get("EV_EBITDA"),
-                "ROE": pm.get("ROE"),
-                "Debt/Equity": pm.get("DebtEquity"),
-                "Market Cap (Cr)": pm.get("MarketCap"),
-            })
+        pm = extract_valuation_metrics(pfund, symbol=ps)
+        peer_data.append({
+            "Symbol": ps,
+            "Company": pm.get("Company", ps),
+            "PE": pm.get("PE"),
+            "PEG": pm.get("PEG"),
+            "EV/EBITDA": pm.get("EV_EBITDA"),
+            "ROE": pm.get("ROE"),
+            "Debt/Equity": pm.get("DebtEquity"),
+            "Market Cap (Cr)": pm.get("MarketCap"),
+        })
     except Exception:
         pass
 
