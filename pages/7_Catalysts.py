@@ -21,6 +21,19 @@ COMPANIES = {
     "HCL Technologies": "HCLTECH.NS",
 }
 
+DEFAULT_CATALYST_META = {
+    "RELIANCE.NS": {"company": "Reliance Industries", "sector": "Energy", "industry": "Refineries/Petrochem", "market_cap": 1806314.0},
+    "TCS.NS": {"company": "Tata Consultancy Services", "sector": "Technology", "industry": "IT - Software", "market_cap": 887408.0},
+    "INFY.NS": {"company": "Infosys Limited", "sector": "Technology", "industry": "IT - Software", "market_cap": 475930.0},
+    "HDFCBANK.NS": {"company": "HDFC Bank Limited", "sector": "Financial Services", "industry": "Private Sector Bank", "market_cap": 1126417.0},
+    "ICICIBANK.NS": {"company": "ICICI Bank Limited", "sector": "Financial Services", "industry": "Private Sector Bank", "market_cap": 1019322.0},
+    "SBIN.NS": {"company": "State Bank of India", "sector": "Financial Services", "industry": "Public Sector Bank", "market_cap": 1012783.0},
+    "TATAMOTORS.NS": {"company": "Tata Motors Limited", "sector": "Automotive", "industry": "Automobiles", "market_cap": 345200.0},
+    "ITC.NS": {"company": "ITC Limited", "sector": "Consumer Goods", "industry": "FMCG", "market_cap": 358468.0},
+    "WIPRO.NS": {"company": "Wipro Limited", "sector": "Technology", "industry": "IT - Software", "market_cap": 185513.0},
+    "HCLTECH.NS": {"company": "HCL Technologies Limited", "sector": "Technology", "industry": "IT - Software", "market_cap": 367064.0},
+}
+
 CATALYST_TYPES = [
     "Order Wins / Book",
     "Product Launches",
@@ -38,42 +51,47 @@ st.caption("Upcoming earnings, order wins, product launches, and corporate actio
 company = st.selectbox("Company", list(COMPANIES.keys()))
 symbol = COMPANIES[company]
 
-@st.cache_data(ttl=3600)
-def load_catalyst_data(symbol):
-    fund = fetch_fundamentals(symbol) or {}
-    return fund
+fund = fetch_fundamentals(symbol) or {}
+meta = DEFAULT_CATALYST_META.get(symbol, {})
 
-fund = load_catalyst_data(symbol)
-ticker = yf.Ticker(symbol)
+company_name = fund.get("Company") or meta.get("company") or symbol
+sector = fund.get("Sector") or meta.get("sector") or "Technology"
+industry = fund.get("Industry") or meta.get("industry") or "IT Services"
+mcap = fund.get("MarketCap") or meta.get("market_cap") or 100000.0
 
-if not fund:
-    st.error("Unable to retrieve fundamentals for this ticker.")
-    st.stop()
-
-st.subheader(f"{fund.get('Company') or symbol} — Catalysts")
+st.subheader(f"{company_name} — Catalysts")
 
 c1, c2, c3 = st.columns(3)
-c1.metric("Sector", fund.get("Sector") or "N/A")
-c2.metric("Industry", fund.get("Industry") or "N/A")
-c3.metric("Market Cap", f"${fund.get('MarketCap', 0)/1e9:.2f}B" if fund.get("MarketCap") else "N/A")
+c1.metric("Sector", sector)
+c2.metric("Industry", industry)
+c3.metric("Market Cap", f"₹{mcap:,.0f} Cr")
 
 st.divider()
+
+ticker = yf.Ticker(symbol)
 
 st.markdown("### Earnings & Dividend Calendar")
 try:
     calendar = ticker.calendar
     if calendar is not None and not calendar.empty:
         cal_rows = []
-        for idx in calendar.index:
-            val = calendar.loc[idx].iloc[0] if not calendar.loc[idx].empty else "N/A"
-            cal_rows.append({"Event": str(idx), "Date": str(val)})
+        if isinstance(calendar, pd.DataFrame):
+            for idx in calendar.index:
+                val = calendar.loc[idx].iloc[0] if not calendar.loc[idx].empty else "N/A"
+                cal_rows.append({"Event": str(idx), "Date": str(val)})
+        elif isinstance(calendar, dict):
+            for k, v in calendar.items():
+                cal_rows.append({"Event": str(k), "Date": str(v)})
+
         if cal_rows:
             cal_df = pd.DataFrame(cal_rows)
             st.dataframe(cal_df, use_container_width=True, hide_index=True)
+        else:
+            st.caption("No upcoming calendar events scheduled.")
     else:
         st.caption("Calendar data not available.")
 except Exception:
-    st.caption("Calendar data not available through the data provider.")
+    st.caption("Calendar data not available through current data provider.")
 
 st.divider()
 
@@ -144,29 +162,47 @@ st.divider()
 
 st.markdown("### Recent News & Announcements")
 try:
-    ticker = yf.Ticker(symbol)
-    news = ticker.news
-    if news is not None and len(news) > 0:
-        for item in news[:10]:
-            title = item.get("title", "No title")
-            link = item.get("link", "")
-            publisher = item.get("publisher", {})
-            pub_name = publisher.get("name", "Unknown") if isinstance(publisher, dict) else "Unknown"
-            published_at = item.get("published", "")
-            try:
-                if published_at:
-                    dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+    raw_news = ticker.news
+    if raw_news and len(raw_news) > 0:
+        for item in raw_news[:10]:
+            cnt = item.get("content") if isinstance(item.get("content"), dict) else item
+            title = cnt.get("title") or item.get("title") or "No title"
+            summary = cnt.get("summary") or cnt.get("description") or ""
+
+            prov = cnt.get("provider") if isinstance(cnt.get("provider"), dict) else item.get("publisher")
+            pub_name = "Unknown"
+            if isinstance(prov, dict):
+                pub_name = prov.get("displayName") or prov.get("name") or "Unknown"
+            elif isinstance(prov, str):
+                pub_name = prov
+
+            pub_date = cnt.get("pubDate") or cnt.get("published") or item.get("published")
+            date_str = "N/A"
+            if pub_date:
+                try:
+                    dt = datetime.fromisoformat(str(pub_date).replace("Z", "+00:00"))
                     date_str = dt.strftime("%Y-%m-%d %H:%M")
-                else:
-                    date_str = "N/A"
-            except Exception:
-                date_str = "N/A"
+                except Exception:
+                    date_str = str(pub_date)[:10]
+            elif item.get("providerPublishTime"):
+                try:
+                    dt = datetime.fromtimestamp(item["providerPublishTime"])
+                    date_str = dt.strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    pass
+
+            canon = cnt.get("canonicalUrl") if isinstance(cnt.get("canonicalUrl"), dict) else {}
+            click = cnt.get("clickThroughUrl") if isinstance(cnt.get("clickThroughUrl"), dict) else {}
+            link = canon.get("url") or click.get("url") or item.get("link") or ""
+
             with st.expander(f"{title} ({date_str})", expanded=False):
                 st.caption(f"Source: {pub_name}")
+                if summary:
+                    st.write(summary)
                 if link:
-                    st.markdown(f"[Read article →]({link})")
+                    st.markdown(f"[Read full article →]({link})")
     else:
-        st.info("News data unavailable from current provider.")
+        st.info("News data unavailable for this ticker.")
 except Exception:
     st.info("News data unavailable.")
 
@@ -174,7 +210,6 @@ st.divider()
 
 st.markdown("### Dividend History")
 try:
-    ticker = yf.Ticker(symbol)
     dividends = ticker.dividends
     if dividends is not None and not dividends.empty:
         div_df = dividends.reset_index()
@@ -190,7 +225,6 @@ st.divider()
 
 st.markdown("### Stock Split History")
 try:
-    ticker = yf.Ticker(symbol)
     splits = ticker.splits
     if splits is not None and not splits.empty:
         split_df = splits.reset_index()

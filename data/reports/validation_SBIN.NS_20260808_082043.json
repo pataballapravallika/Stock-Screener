@@ -1,0 +1,14 @@
+{
+  "symbol": "SBIN.NS",
+  "validated_at": "2026-08-08T08:20:43.346647",
+  "threshold_pct": 5.0,
+  "quarterly": [],
+  "annual": [],
+  "ttm": [],
+  "summary": {
+    "total_checks": 0,
+    "mismatches": 0,
+    "missing": 0,
+    "ok": 0
+  }
+}

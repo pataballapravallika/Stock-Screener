@@ -541,11 +541,16 @@ with tab3:
 
     st.divider()
 
-    st.markdown("### Add to Watchlist")
-    watchlist = st.multiselect("Select stocks to add", suggestions, key="watchlist_add")
+    watchlist = st.multiselect(
+        "Select stocks to add",
+        suggestions,
+        format_func=lambda s: f"{s['Company']} ({s['Symbol']})",
+        key="watchlist_add",
+    )
     if st.button("Add Selected to Watchlist", key="add_watchlist"):
         if watchlist:
-            st.success(f"Added {len(watchlist)} stocks to watchlist: {', '.join(watchlist)}")
+            stock_names = [f"{s['Company']} ({s['Symbol']})" if isinstance(s, dict) else str(s) for s in watchlist]
+            st.success(f"Added {len(watchlist)} stocks to watchlist: {', '.join(stock_names)}")
         else:
             st.warning("No stocks selected.")
 

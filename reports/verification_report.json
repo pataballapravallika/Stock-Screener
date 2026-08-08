@@ -1,0 +1,957 @@
+[
+  {
+    "ticker": "HDFCBANK.NS",
+    "source": "official_reports",
+    "quarterly_count": 8,
+    "annual_count": 0,
+    "has_ttm": true,
+    "ratios": {
+      "roe": null,
+      "roa": null,
+      "roce": null,
+      "debt_equity": null,
+      "opm": null,
+      "npm": null,
+      "fcf": null
+    },
+    "q_growth": {
+      "eps_qoq": null,
+      "sales_qoq": null,
+      "pat_qoq": null,
+      "eps_yoy": null,
+      "sales_yoy": null,
+      "pat_yoy": null
+    },
+    "a_growth": {},
+    "piotroski": {},
+    "altman": {
+      "value": null,
+      "status": "Unavailable",
+      "available": false
+    },
+    "missing": [
+      "annual reports",
+      "revenue",
+      "operating_profit",
+      "ebit",
+      "pat",
+      "eps",
+      "equity",
+      "assets",
+      "liabilities",
+      "current_liabilities",
+      "debt",
+      "operating_cash_flow",
+      "capex"
+    ],
+    "validation": {
+      "symbol": "HDFCBANK.NS",
+      "validated_at": "2026-08-08T08:31:22.057769",
+      "threshold_pct": 5.0,
+      "quarterly": [
+        {
+          "period": "2026-06-01",
+          "financial_year": 2027,
+          "quarter": 2,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2026-03-01",
+          "financial_year": 2027,
+          "quarter": 1,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2025-09-01",
+          "financial_year": 2026,
+          "quarter": 3,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2025-06-01",
+          "financial_year": 2026,
+          "quarter": 2,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2025-03-01",
+          "financial_year": 2026,
+          "quarter": 1,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2025-12-01",
+          "financial_year": 2025,
+          "quarter": 4,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2024-09-01",
+          "financial_year": 2025,
+          "quarter": 3,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2024-06-01",
+          "financial_year": 2025,
+          "quarter": 2,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        }
+      ],
+      "annual": [],
+      "ttm": [
+        {
+          "period": "TTM",
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        }
+      ],
+      "summary": {
+        "total_checks": 54,
+        "mismatches": 0,
+        "missing": 0,
+        "ok": 54
+      }
+    }
+  },
+  {
+    "ticker": "SBIN.NS",
+    "source": "official_reports",
+    "quarterly_count": 8,
+    "annual_count": 0,
+    "has_ttm": false,
+    "ratios": {
+      "roe": null,
+      "roa": null,
+      "roce": null,
+      "debt_equity": null,
+      "opm": null,
+      "npm": null,
+      "fcf": null
+    },
+    "q_growth": {
+      "eps_qoq": null,
+      "sales_qoq": null,
+      "pat_qoq": null,
+      "eps_yoy": null,
+      "sales_yoy": null,
+      "pat_yoy": null
+    },
+    "a_growth": {},
+    "piotroski": {},
+    "altman": {
+      "value": null,
+      "status": "Unavailable",
+      "available": false
+    },
+    "missing": [
+      "annual reports",
+      "TTM record",
+      "revenue",
+      "operating_profit",
+      "ebit",
+      "pat",
+      "eps",
+      "equity",
+      "assets",
+      "liabilities",
+      "current_liabilities",
+      "debt",
+      "operating_cash_flow",
+      "capex"
+    ],
+    "validation": {
+      "symbol": "SBIN.NS",
+      "validated_at": "2026-08-08T08:31:22.281386",
+      "threshold_pct": 5.0,
+      "quarterly": [
+        {
+          "period": "2026-06-01",
+          "financial_year": 2027,
+          "quarter": 2,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2026-03-01",
+          "financial_year": 2027,
+          "quarter": 1,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2025-03-01",
+          "financial_year": 2026,
+          "quarter": 1,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2024-03-01",
+          "financial_year": 2025,
+          "quarter": 1,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2023-03-01",
+          "financial_year": 2024,
+          "quarter": 1,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2022-03-01",
+          "financial_year": 2023,
+          "quarter": 1,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2021-03-01",
+          "financial_year": 2022,
+          "quarter": 1,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "period": "2020-03-01",
+          "financial_year": 2021,
+          "quarter": 1,
+          "rows": [
+            {
+              "metric": "ROE",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "ROA",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "OPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "NPM",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": null,
+              "calculated": null,
+              "diff_pct": null,
+              "status": "OK"
+            }
+          ]
+        }
+      ],
+      "annual": [],
+      "ttm": [],
+      "summary": {
+        "total_checks": 48,
+        "mismatches": 0,
+        "missing": 0,
+        "ok": 48
+      }
+    }
+  }
+]

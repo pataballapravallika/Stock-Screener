@@ -1,7 +1,7 @@
 import yfinance as yf
 import pandas as pd
 from typing import Dict, Any, Optional
-from .base import FundamentalProvider
+from data.providers.base_provider import BaseFundamentalProvider
 
 
 def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -12,13 +12,14 @@ def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-class YahooFinanceProvider(FundamentalProvider):
+class YahooFinanceProvider(BaseFundamentalProvider):
     """Provider that wraps yfinance but returns structured results and metadata.
 
     This keeps a clear boundary so providers can be swapped later.
+    NOTE: Use YahooPriceProvider for OHLCV-only data.
     """
 
-    def get_info(self, symbol: str) -> Dict[str, Any]:
+    def get_company_info(self, symbol: str) -> Dict[str, Any]:
         t = yf.Ticker(symbol)
         return t.info or {}
 
@@ -56,3 +57,6 @@ class YahooFinanceProvider(FundamentalProvider):
         if df is None or df.empty:
             return None
         return _normalize_df(df)
+
+    def get_source(self) -> str:
+        return "yahoo_finance"

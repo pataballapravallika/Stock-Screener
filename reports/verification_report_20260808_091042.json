@@ -1,0 +1,1850 @@
+{
+  "generated_at": "2026-08-08T09:10:38.342021+00:00",
+  "threshold_pct": 5.0,
+  "tickers": [
+    {
+      "ticker": "RELIANCE.NS",
+      "status": "OK",
+      "source": "official_reports",
+      "elapsed_seconds": 1.48,
+      "company_name": "Reliance Industries Ltd",
+      "sector": "25",
+      "industry": null,
+      "top_metrics": {
+        "MarketCap": 18063230000000.0,
+        "PE": 294237335070.85846,
+        "PEG": null,
+        "ROE": 0.10616066892754658,
+        "ROCE": null,
+        "ROA": 0.045979472175640156,
+        "DebtEquity": 0.7700309841234971,
+        "ProfitMargin": 0.07495443793865601,
+        "GrossMargin": null,
+        "RevenueGrowth_annual": null,
+        "PATGrowth_annual": null,
+        "EPSGrowth_annual": null,
+        "EPSYoY_quarterly": -0.2240601503759398,
+        "EPSQoQ_quarterly": 0.23444976076555035,
+        "SalesYoY_quarterly": 0.27022722795035137,
+        "SalesQoQ_quarterly": 0.05240104876912456,
+        "PATYoY_quarterly": -0.2464672059253484,
+        "PATQoQ_quarterly": 0.12662101121958327,
+        "PiotroskiScore": null,
+        "PiotroskiMax": null,
+        "AltmanZ": null,
+        "AltmanStatus": null,
+        "FreeCashFlowTTM": null,
+        "FreeCashFlowAnnual": null,
+        "OperatingCashFlowTTM": 0.0
+      },
+      "quarterly": [
+        {
+          "period": "2026-06-01",
+          "financial_year": 2027,
+          "quarter": 2,
+          "label": "FY2027 Q2",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.11",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.05",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.77",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.15",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.07",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2026-03-01",
+          "financial_year": 2027,
+          "quarter": 1,
+          "label": "FY2027 Q1",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.09",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.04",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.77",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.15",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.07",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2025-09-01",
+          "financial_year": 2026,
+          "quarter": 3,
+          "label": "FY2026 Q3",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.10",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.04",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.77",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.18",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.09",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2025-06-01",
+          "financial_year": 2026,
+          "quarter": 2,
+          "label": "FY2026 Q2",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.14",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.06",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.77",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.18",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.13",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        }
+      ],
+      "annual": [],
+      "ttm": [
+        {
+          "period": "TTM",
+          "financial_year": 2027,
+          "label": "TTM (FY2027)",
+          "missing_fields": [
+            "eps",
+            "current_assets",
+            "current_liabilities"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.40",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.17",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.77",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.16",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.08",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        }
+      ],
+      "piotroski_f_score": {},
+      "altman_z_score": {
+        "value": null,
+        "status": "Unavailable",
+        "available": false
+      },
+      "total_mismatches": 0,
+      "all_missing_fields": [
+        "capex",
+        "current_assets",
+        "current_liabilities",
+        "eps",
+        "operating_cash_flow"
+      ]
+    },
+    {
+      "ticker": "TCS.NS",
+      "status": "OK",
+      "source": "official_reports",
+      "elapsed_seconds": 1.16,
+      "company_name": "Tata Consultancy Services Ltd",
+      "sector": "25",
+      "industry": null,
+      "top_metrics": {
+        "MarketCap": 8874080000000.0,
+        "PE": 61857521260.28161,
+        "PEG": 13384753219.9395,
+        "ROE": 0.265034067344722,
+        "ROCE": null,
+        "ROA": 0.18303827163861536,
+        "DebtEquity": 0.007070208353905401,
+        "ProfitMargin": 0.18567969560705638,
+        "GrossMargin": null,
+        "RevenueGrowth_annual": null,
+        "PATGrowth_annual": null,
+        "EPSGrowth_annual": null,
+        "EPSYoY_quarterly": 0.04621491352424143,
+        "EPSQoQ_quarterly": -0.02689873417721527,
+        "SalesYoY_quarterly": 0.13931932468433247,
+        "SalesQoQ_quarterly": 0.02230614727432176,
+        "PATYoY_quarterly": 0.046883532256806304,
+        "PATQoQ_quarterly": -0.02640742890307603,
+        "PiotroskiScore": null,
+        "PiotroskiMax": null,
+        "AltmanZ": null,
+        "AltmanStatus": null,
+        "FreeCashFlowTTM": null,
+        "FreeCashFlowAnnual": null,
+        "OperatingCashFlowTTM": 0.0
+      },
+      "quarterly": [
+        {
+          "period": "2026-06-01",
+          "financial_year": 2027,
+          "quarter": 2,
+          "label": "FY2027 Q2",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.27",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.18",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.01",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.26",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.19",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2026-03-01",
+          "financial_year": 2027,
+          "quarter": 1,
+          "label": "FY2027 Q1",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.27",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.19",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.01",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.27",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.19",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2025-09-01",
+          "financial_year": 2026,
+          "quarter": 3,
+          "label": "FY2026 Q3",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.24",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.17",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.01",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.27",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.18",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2025-06-01",
+          "financial_year": 2026,
+          "quarter": 2,
+          "label": "FY2026 Q2",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.25",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.17",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.01",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.27",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.20",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        }
+      ],
+      "annual": [],
+      "ttm": [
+        {
+          "period": "TTM",
+          "financial_year": 2027,
+          "label": "TTM (FY2027)",
+          "missing_fields": [
+            "eps",
+            "current_assets",
+            "current_liabilities"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.99",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.68",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.01",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.27",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.18",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        }
+      ],
+      "piotroski_f_score": {},
+      "altman_z_score": {
+        "value": null,
+        "status": "Unavailable",
+        "available": false
+      },
+      "total_mismatches": 0,
+      "all_missing_fields": [
+        "capex",
+        "current_assets",
+        "current_liabilities",
+        "eps",
+        "operating_cash_flow"
+      ]
+    },
+    {
+      "ticker": "INFY.NS",
+      "status": "OK",
+      "source": "official_reports",
+      "elapsed_seconds": 0.83,
+      "company_name": "Infosys Ltd",
+      "sector": "25",
+      "industry": null,
+      "top_metrics": {
+        "MarketCap": 4768060000000.0,
+        "PE": 64000805369.12752,
+        "PEG": 4282142238.7536755,
+        "ROE": 0.15324424471775466,
+        "ROCE": null,
+        "ROA": 0.11728944470424957,
+        "DebtEquity": null,
+        "ProfitMargin": 0.161270249528116,
+        "GrossMargin": null,
+        "RevenueGrowth_annual": null,
+        "PATGrowth_annual": null,
+        "EPSGrowth_annual": null,
+        "EPSYoY_quarterly": 0.14945978391356532,
+        "EPSQoQ_quarterly": -0.08635496183206118,
+        "SalesYoY_quarterly": 0.1403060621112136,
+        "SalesQoQ_quarterly": 0.03898538856083789,
+        "PATYoY_quarterly": 0.12290583477758521,
+        "PATQoQ_quarterly": -0.08626160535903162,
+        "PiotroskiScore": null,
+        "PiotroskiMax": null,
+        "AltmanZ": null,
+        "AltmanStatus": null,
+        "FreeCashFlowTTM": null,
+        "FreeCashFlowAnnual": null,
+        "OperatingCashFlowTTM": 0.0
+      },
+      "quarterly": [
+        {
+          "period": "2026-06-01",
+          "financial_year": 2027,
+          "quarter": 2,
+          "label": "FY2027 Q2",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.15",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.12",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.24",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.16",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2026-03-01",
+          "financial_year": 2027,
+          "quarter": 1,
+          "label": "FY2027 Q1",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.17",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.13",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.24",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.18",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2025-09-01",
+          "financial_year": 2026,
+          "quarter": 3,
+          "label": "FY2026 Q3",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.15",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.11",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.24",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.17",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2025-06-01",
+          "financial_year": 2026,
+          "quarter": 2,
+          "label": "FY2026 Q2",
+          "missing_fields": [
+            "current_assets",
+            "current_liabilities",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.14",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.10",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.24",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.16",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        }
+      ],
+      "annual": [],
+      "ttm": [
+        {
+          "period": "TTM",
+          "financial_year": 2027,
+          "label": "TTM (FY2027)",
+          "missing_fields": [
+            "eps",
+            "current_assets",
+            "current_liabilities"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "0.60",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "0.46",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "0.24",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.16",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        }
+      ],
+      "piotroski_f_score": {},
+      "altman_z_score": {
+        "value": null,
+        "status": "Unavailable",
+        "available": false
+      },
+      "total_mismatches": 0,
+      "all_missing_fields": [
+        "capex",
+        "current_assets",
+        "current_liabilities",
+        "eps",
+        "operating_cash_flow"
+      ]
+    },
+    {
+      "ticker": "HDFCBANK.NS",
+      "status": "OK",
+      "source": "official_reports",
+      "elapsed_seconds": 0.24,
+      "company_name": null,
+      "sector": null,
+      "industry": null,
+      "top_metrics": {
+        "MarketCap": null,
+        "PE": null,
+        "PEG": null,
+        "ROE": null,
+        "ROCE": null,
+        "ROA": null,
+        "DebtEquity": null,
+        "ProfitMargin": null,
+        "GrossMargin": null,
+        "RevenueGrowth_annual": null,
+        "PATGrowth_annual": null,
+        "EPSGrowth_annual": null,
+        "EPSYoY_quarterly": null,
+        "EPSQoQ_quarterly": null,
+        "SalesYoY_quarterly": null,
+        "SalesQoQ_quarterly": null,
+        "PATYoY_quarterly": null,
+        "PATQoQ_quarterly": null,
+        "PiotroskiScore": null,
+        "PiotroskiMax": null,
+        "AltmanZ": null,
+        "AltmanStatus": null,
+        "FreeCashFlowTTM": null,
+        "FreeCashFlowAnnual": null,
+        "OperatingCashFlowTTM": null
+      },
+      "quarterly": [],
+      "annual": [],
+      "ttm": [],
+      "piotroski_f_score": {},
+      "altman_z_score": {},
+      "total_mismatches": 0,
+      "all_missing_fields": []
+    },
+    {
+      "ticker": "SBIN.NS",
+      "status": "OK",
+      "source": "official_reports",
+      "elapsed_seconds": 0.51,
+      "company_name": null,
+      "sector": null,
+      "industry": null,
+      "top_metrics": {
+        "MarketCap": null,
+        "PE": null,
+        "PEG": null,
+        "ROE": null,
+        "ROCE": null,
+        "ROA": null,
+        "DebtEquity": null,
+        "ProfitMargin": 0.18438784497944805,
+        "GrossMargin": null,
+        "RevenueGrowth_annual": null,
+        "PATGrowth_annual": null,
+        "EPSGrowth_annual": null,
+        "EPSYoY_quarterly": 0.09932659932659929,
+        "EPSQoQ_quarterly": 0.22744360902255636,
+        "SalesYoY_quarterly": 0.08360044222096732,
+        "SalesQoQ_quarterly": 0.03936527311565456,
+        "PATYoY_quarterly": 0.13561773880023506,
+        "PATQoQ_quarterly": 0.2249366101033743,
+        "PiotroskiScore": null,
+        "PiotroskiMax": null,
+        "AltmanZ": null,
+        "AltmanStatus": null,
+        "FreeCashFlowTTM": null,
+        "FreeCashFlowAnnual": null,
+        "OperatingCashFlowTTM": 0.0
+      },
+      "quarterly": [
+        {
+          "period": "2026-06-01",
+          "financial_year": 2027,
+          "quarter": 2,
+          "label": "FY2027 Q2",
+          "missing_fields": [
+            "ebit",
+            "assets",
+            "current_assets",
+            "liabilities",
+            "current_liabilities",
+            "equity",
+            "debt",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "-0.08",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.18",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2026-03-01",
+          "financial_year": 2027,
+          "quarter": 1,
+          "label": "FY2027 Q1",
+          "missing_fields": [
+            "ebit",
+            "assets",
+            "current_assets",
+            "liabilities",
+            "current_liabilities",
+            "equity",
+            "debt",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "-0.18",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.16",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2025-09-01",
+          "financial_year": 2026,
+          "quarter": 3,
+          "label": "FY2026 Q3",
+          "missing_fields": [
+            "ebit",
+            "assets",
+            "current_assets",
+            "liabilities",
+            "current_liabilities",
+            "equity",
+            "debt",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "-0.17",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.17",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        },
+        {
+          "period": "2025-06-01",
+          "financial_year": 2026,
+          "quarter": 2,
+          "label": "FY2026 Q2",
+          "missing_fields": [
+            "ebit",
+            "assets",
+            "current_assets",
+            "liabilities",
+            "current_liabilities",
+            "equity",
+            "debt",
+            "operating_cash_flow",
+            "capex"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "-0.10",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.18",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        }
+      ],
+      "annual": [],
+      "ttm": [
+        {
+          "period": "TTM",
+          "financial_year": 2027,
+          "label": "TTM (FY2027)",
+          "missing_fields": [
+            "eps",
+            "assets",
+            "current_assets",
+            "liabilities",
+            "current_liabilities",
+            "equity",
+            "debt"
+          ],
+          "validation": [
+            {
+              "metric": "ROE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROA",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "ROCE",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Debt/Equity",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "OPM",
+              "extracted": "N/A",
+              "calculated": "-0.16",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "NPM",
+              "extracted": "N/A",
+              "calculated": "0.17",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Gross Margin",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "Working Capital",
+              "extracted": "N/A",
+              "calculated": "N/A",
+              "diff_pct": null,
+              "status": "MISSING"
+            },
+            {
+              "metric": "FreeCashFlow",
+              "extracted": "N/A",
+              "calculated": "0.00",
+              "diff_pct": null,
+              "status": "MISSING"
+            }
+          ],
+          "mismatch_count": 0
+        }
+      ],
+      "piotroski_f_score": {},
+      "altman_z_score": {
+        "value": null,
+        "status": "Unavailable",
+        "available": false
+      },
+      "total_mismatches": 0,
+      "all_missing_fields": [
+        "capex",
+        "debt",
+        "current_assets",
+        "equity",
+        "current_liabilities",
+        "assets",
+        "eps",
+        "operating_cash_flow",
+        "liabilities",
+        "ebit"
+      ]
+    }
+  ]
+}

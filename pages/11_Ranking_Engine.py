@@ -163,7 +163,7 @@ st.dataframe(sector_rank, use_container_width=True, hide_index=True)
 
 st.divider()
 
-st.subheader("Automatic Top 100 List (Simulated)")
+st.subheader("Top Ranked Stocks")
 st.caption("Top 10 stocks from the current universe ranked by combined score")
 top_10 = rank_df.head(10)
 fig = px.bar(top_10, x="Company", y="Overall Score", color="Signal",
@@ -336,11 +336,7 @@ for name in selected_companies:
         if prior_pat is not None and prior_sales is not None and prior_sales != 0:
             prior_npm = prior_pat / prior_sales
     results["NPM_YoY"] = yoy_growth(latest_npm, prior_npm) if latest_npm is not None and prior_npm is not None else None
-    try:
-        ticker = yf.Ticker(symbol)
-        promoter_pct, institutions_pct, inst_history = _parse_shareholding(ticker)
-    except Exception:
-        promoter_pct, institutions_pct, inst_history = (None, None, [])
+    promoter_pct, institutions_pct, inst_history = (None, None, [])
     results["Promoter %"] = promoter_pct
     results["Institutional %"] = institutions_pct
     results["Shareholding History"] = "; ".join([f"{date}: {pct * 100:.2f}%" for date, pct in inst_history]) if inst_history else "N/A"

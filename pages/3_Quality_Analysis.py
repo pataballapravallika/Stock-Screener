@@ -29,6 +29,8 @@ COMPANIES = {
 st.title("Quality Analysis")
 st.caption("ROE, ROCE, ROA, Debt/Equity, Free Cashflow, Piotroski F Score, Altman Z Score, and banking metrics")
 
+from data.ui_helpers import render_official_data_header
+
 company = st.selectbox("Company", list(COMPANIES.keys()))
 symbol = COMPANIES[company]
 
@@ -39,6 +41,8 @@ def load_quality_data(symbol):
     return fund, q_fund
 
 fund, q_fund = load_quality_data(symbol)
+
+render_official_data_header(fund)
 
 if not fund:
     st.error("Unable to retrieve fundamentals for this ticker.")
@@ -221,16 +225,9 @@ st.dataframe(display_metrics, use_container_width=True, hide_index=True)
 
 st.divider()
 st.subheader("Annual Fundamentals")
-try:
-    ticker = yf.Ticker(symbol)
-    income_stmt = ticker.income_stmt
-    balance_sheet = ticker.balance_sheet
-    cashflow = ticker.cashflow
-except Exception as e:
-    st.warning(f"Could not retrieve financial statements: {e}")
-    income_stmt = None
-    balance_sheet = None
-    cashflow = None
+income_stmt = fund.get("annual_financials") if isinstance(fund, dict) else None
+balance_sheet = fund.get("balance_sheet") if isinstance(fund, dict) else None
+cashflow = fund.get("cashflow") if isinstance(fund, dict) else None
 
 annual_growth = {}
 if income_stmt is not None and not income_stmt.empty:
@@ -244,7 +241,7 @@ if annual_growth:
     if annual_rows:
         st.dataframe(pd.DataFrame(annual_rows), use_container_width=True, hide_index=True)
 else:
-    st.info("Annual fundamentals unavailable from current data provider.")
+    st.info("Annual fundamentals unavailable from official filings.")
 
 st.divider()
 st.subheader("Quarterly Fundamentals")
@@ -266,19 +263,11 @@ if quarterly_growth:
     else:
         st.info("Quarterly growth data unavailable.")
 else:
-    st.info("Quarterly fundamentals unavailable from current data provider.")
+    st.info("Quarterly fundamentals unavailable from official filings.")
 
 st.divider()
 st.subheader("Shareholding Pattern")
-try:
-    ticker = yf.Ticker(symbol)
-    holders = ticker.major_holders
-    if holders is not None and not holders.empty:
-        st.dataframe(holders, use_container_width=True)
-    else:
-        st.info("Shareholding data unavailable from current provider.")
-except Exception:
-    st.info("Shareholding data unavailable. Additional data source required.")
+st.info("Shareholding data unavailable from current provider.")
 q_roe = fund.get("quarterly_roe") or {}
 q_roa = fund.get("quarterly_roa") or {}
 q_de = fund.get("quarterly_debt_equity") or {}

@@ -33,6 +33,8 @@ COMPANIES = {
 st.title("Growth Analysis")
 st.caption("Quarterly & annual EPS, PAT, Sales, OPM, EBIT, NPM with YoY/QoQ comparison vs industry median")
 
+from data.ui_helpers import render_official_data_header
+
 company = st.selectbox("Company", list(COMPANIES.keys()))
 symbol = COMPANIES[company]
 
@@ -43,6 +45,8 @@ def load_growth_data(symbol):
     return fund, q_fund
 
 fund, q_fund = load_growth_data(symbol)
+
+render_official_data_header(fund)
 
 if not fund:
     st.error("Unable to retrieve fundamentals for this ticker.")
@@ -256,12 +260,6 @@ st.divider()
 st.markdown("### Annual Growth Metrics (Last 3 Years)")
 
 annual_income = fund.get("annual_financials") if isinstance(fund, dict) else None
-if annual_income is None:
-    try:
-        ticker_fallback = yf.Ticker(symbol)
-        annual_income = getattr(ticker_fallback, "annual_financials", None)
-    except Exception:
-        annual_income = None
 
 if annual_income is not None and not annual_income.empty:
     periods_ann = list(annual_income.columns)[:3]

@@ -1,0 +1,33 @@
+P: Pros
+P: Cons
+P: *The pros and cons are machine generated.Pros / cons are based on a checklist to highlight important points. Please exercise caution and do your own analysis.
+P: Information TechnologyInformation TechnologyIT - SoftwareComputers - Software & Consulting
+P: Consolidated Figures in Rs. Crores
+        /View Standalone
+P: Consolidated Figures in Rs. Crores
+        /View Standalone
+P: Consolidated Figures in Rs. Crores
+        /View Standalone
+P: Consolidated Figures in Rs. Crores
+        /View Standalone
+P: Consolidated Figures in Rs. Crores
+        /View Standalone
+P: Log in to view insights
+P: Please log in to see hidden values.
+P: Extracted by Screener AI
+P: Numbers in percentages
+P: Stock analysis and screening tool
+P: Mittal Analytics Private Ltd © 2009-2026Made within India.
+P: Data provided by C-MOTS Internet Technologies Pvt Ltd
+P: Terms&Privacy.
+P: Mittal Analytics Private Ltd © 2009-2026
+P: Data provided by C-MOTS Internet Technologies Pvt Ltd
+P: Terms&Privacy.
+Tag: div, Text: Market Cap₹8,88,532Cr.Current Price₹2,453High / Low₹3,350/1,976Stock P/E16.6Book Value₹296Dividend Yield2.61%ROCE63.0%ROE51.8%Face Value₹1.00Add ratio to tableEdit ratios
+Tag: li, Text: Market Cap₹8,88,532Cr.
+Tag: span, Text: Market Cap
+Tag: div, Text: 1M6M1Yr3Yr5Yr10YrMaxPricePE RatioHiddenMoreSales & MarginEV / EBITDAPrice to BookMarket Cap / SalesAlerts
+Tag: div, Text: PricePE RatioHiddenMoreSales & MarginEV / EBITDAPrice to BookMarket Cap / SalesAlerts
+Tag: div, Text: PricePE RatioHiddenMoreSales & MarginEV / EBITDAPrice to BookMarket Cap / Sales
+Tag: div, Text: MoreSales & MarginEV / EBITDAPrice to BookMarket Cap / Sales
+Tag: li, Text: Market Cap / Sales

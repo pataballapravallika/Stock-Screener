@@ -16,6 +16,8 @@ from fundamentals.ratios import compute_roe, compute_roa, compute_roce, compute_
 from fundamentals.altman import compute_altman_z
 from fundamentals.piotroski import compute_piotroski_f_score
 
+from data.ui_helpers import render_official_data_header
+
 st.set_page_config(page_title="Dashboard", layout="wide")
 
 COMPANIES = {
@@ -46,6 +48,8 @@ def load_dashboard_data(symbol):
     return df, fund
 
 df, fund = load_dashboard_data(symbol)
+
+render_official_data_header(fund)
 
 if df.empty:
     st.error("No data available for this ticker.")
