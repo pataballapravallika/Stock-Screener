@@ -48,43 +48,59 @@ def extract_valuation_metrics(fund: dict, symbol: str = None) -> dict:
 
     sym = symbol or fund.get("Symbol") or fund.get("ticker")
 
+    t_info = {}
+    try:
+        t = yf.Ticker(sym)
+        if hasattr(t, "info") and isinstance(t.info, dict):
+            t_info = t.info
+    except Exception:
+        pass
+
     mcap = fund.get("MarketCap") or fund.get("marketCap")
     if mcap is None or pd_isna(mcap):
-        try:
-            t = yf.Ticker(sym)
-            fi = getattr(t, "fast_info", {})
-            mc = fi.get("marketCap") or (t.info.get("marketCap") if hasattr(t, "info") else None)
-            if mc:
-                mcap = mc / 1e7
-        except Exception:
-            pass
+        mc = t_info.get("marketCap")
+        if mc and mc > 0:
+            mcap = mc / 1e7
 
-    pat = fund.get("PAT")
-    ebit = fund.get("EBIT")
-    de = fund.get("DebtEquity")
+    pat = fund.get("PAT") or (t_info.get("netIncomeToCommon") / 1e7 if t_info.get("netIncomeToCommon") else None)
+    ebit = fund.get("EBIT") or (t_info.get("ebitda") / 1e7 if t_info.get("ebitda") else None)
+    de = fund.get("DebtEquity") if fund.get("DebtEquity") is not None else (t_info.get("debtToEquity") / 100.0 if t_info.get("debtToEquity") is not None else None)
 
     pe = fund.get("PE")
+    if pe is None or pd_isna(pe):
+        pe = t_info.get("trailingPE") or t_info.get("forwardPE")
     if (pe is None or pd_isna(pe)) and mcap and pat and pat > 0:
         pe = mcap / (pat * 4.0 if pat < 50000 else pat)
 
-    eps_g = fund.get("EPS_YoY") or fund.get("PAT_YoY") or fund.get("EarningsGrowth") or fund.get("EPS_QoQ")
+    eps_g = fund.get("EPS_YoY") or fund.get("PAT_YoY") or fund.get("EarningsGrowth") or t_info.get("earningsGrowth") or 0.10
     peg = fund.get("PEG")
+    if peg is None or pd_isna(peg):
+        peg = t_info.get("pegRatio")
     if (peg is None or pd_isna(peg)) and pe and eps_g:
-        g_val = eps_g / 100.0 if abs(eps_g) > 1.0 else eps_g
-        peg = compute_peg(pe, g_val)
+        g_val = eps_g * 100.0 if abs(eps_g) <= 1.5 else eps_g
+        if g_val > 0:
+            peg = pe / g_val
 
     ev = mcap + (mcap * (de / 100.0) if de else 0.0) if mcap and de is not None else mcap
-    ev_ebitda = compute_ev_ebitda(ev, ebit) if ev and ebit else (ev / ebit if ev and ebit and ebit > 0 else None)
+    ev_ebitda = fund.get("EV_EBITDA")
+    if ev_ebitda is None or pd_isna(ev_ebitda):
+        ev_ebitda = t_info.get("enterpriseToEbitda")
+    if (ev_ebitda is None or pd_isna(ev_ebitda)) and ev and ebit and ebit > 0:
+        ev_ebitda = ev / ebit
+
+    roe = fund.get("ROE")
+    if roe is None or pd_isna(roe):
+        roe = t_info.get("returnOnEquity")
 
     return {
         "PE": pe,
         "PEG": peg,
         "EV_EBITDA": ev_ebitda,
         "MarketCap": mcap,
-        "ROE": fund.get("ROE"),
+        "ROE": roe,
         "DebtEquity": de,
-        "Company": fund.get("Company") or sym,
-        "Sector": fund.get("Sector"),
+        "Company": fund.get("Company") or t_info.get("shortName") or t_info.get("longName") or sym,
+        "Sector": fund.get("Sector") or t_info.get("sector"),
     }
 
 
