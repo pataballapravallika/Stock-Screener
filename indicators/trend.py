@@ -41,9 +41,10 @@ def vwap(df):
 
 
 def high_52_week(df):
+    window_size = min(252, len(df)) if len(df) > 0 else 1
     df["52W_High"] = (
         df["High"]
-        .rolling(252)
+        .rolling(window_size, min_periods=1)
         .max()
     )
 
