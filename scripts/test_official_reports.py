@@ -45,7 +45,7 @@ def test_provider():
         print(f"\n--- {name} ({symbol}) ---")
 
         try:
-            info = provider.get_info(symbol)
+            info = provider.get_company_info(symbol)
             print(f"  Company: {info.get('company_name', 'N/A')}")
             print(f"  Sector: {info.get('sector', 'N/A')}")
             print(f"  Industry: {info.get('industry', 'N/A')}")

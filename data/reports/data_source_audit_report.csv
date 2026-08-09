@@ -1,0 +1,76 @@
+Ticker,Metric,App Value,Reference Value,Source,Formula,Period,Difference,Status
+RELIANCE.NS,Quarterly Revenue,"309,468.00 Cr","309,468.00 Cr",NSE XBRL / Official Filings,Directly Reported Filing Line Item,2026-06-30,0.0000,OK
+RELIANCE.NS,Quarterly PAT,"23,196.00 Cr","23,196.00 Cr",NSE XBRL / Official Filings,Directly Reported Filing Line Item,2026-06-30,0.0000,OK
+RELIANCE.NS,Quarterly EPS,15.48,15.48,NSE XBRL / Official Filings,Directly Reported Quarterly EPS,2026-06-30,0.0000,OK
+RELIANCE.NS,TTM Revenue,"1,123,055.00 Cr","1,123,055.00 Cr",Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly Revenues,TTM,0.0000,OK
+RELIANCE.NS,TTM PAT,"88,167.00 Cr","88,167.00 Cr",Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly PATs,TTM,0.0000,OK
+RELIANCE.NS,TTM EPS,55.22,55.22,Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly EPS,TTM,0.0000,OK
+RELIANCE.NS,Intraday Session VWAP,"₹1,328.99","₹1,328.99",5m Intraday Feed (yfinance),Sum(P_typical * Vol) / Sum(Vol),2026-08-07,0.0000,OK
+RELIANCE.NS,Promoter Holding %,50.48%,50.48%,Official Shareholding Pattern Filing,Promoter & Promoter Group Shares / Total Shares,Jun 2026,0.0000,OK
+RELIANCE.NS,FII Holding %,17.19%,17.19%,Official Shareholding Pattern Filing,Foreign Institutional Shares / Total Shares,Jun 2026,0.0000,OK
+RELIANCE.NS,DII Holding %,21.10%,21.10%,Official Shareholding Pattern Filing,Domestic Institutional Shares / Total Shares,Jun 2026,0.0000,OK
+RELIANCE.NS,P/E Ratio,24.17,24.15,Price + Official TTM EPS,Current Price / TTM EPS,TTM,0.0175,OK
+RELIANCE.NS,PEG Ratio,N/A,N/A,P/E + YoY Growth,P/E / EPS Growth %,TTM,N/A,N/A
+RELIANCE.NS,EV / EBITDA,10.60,10.60,EV + TTM EBIT,(Market Cap + Debt - Cash) / TTM EBITDA,TTM,0.0000,OK
+RELIANCE.NS,Sector Median P/E,41027842.35,41027842.35,Sector Peer Engine,Median P/E of Sector Constituents,2026-06-30,0.0000,OK
+RELIANCE.NS,Sector Breadth (> 200 EMA),75.00%,75.00%,Sector Peer Engine,% of Sector Stocks > 200 EMA,Live,0.0000,OK
+TCS.NS,Quarterly Revenue,"72,275.00 Cr","72,275.00 Cr",NSE XBRL / Official Filings,Directly Reported Filing Line Item,2026-06-30,0.0000,OK
+TCS.NS,Quarterly PAT,"13,420.00 Cr","13,420.00 Cr",NSE XBRL / Official Filings,Directly Reported Filing Line Item,2026-06-30,0.0000,OK
+TCS.NS,Quarterly EPS,36.90,36.90,NSE XBRL / Official Filings,Directly Reported Quarterly EPS,2026-06-30,0.0000,OK
+TCS.NS,TTM Revenue,"275,859.00 Cr","275,859.00 Cr",Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly Revenues,TTM,0.0000,OK
+TCS.NS,TTM PAT,"50,055.00 Cr","50,055.00 Cr",Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly PATs,TTM,0.0000,OK
+TCS.NS,TTM EPS,137.64,137.64,Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly EPS,TTM,0.0000,OK
+TCS.NS,Intraday Session VWAP,"₹2,437.77","₹2,437.77",5m Intraday Feed (yfinance),Sum(P_typical * Vol) / Sum(Vol),2026-08-07,0.0000,OK
+TCS.NS,Promoter Holding %,71.77%,71.77%,Official Shareholding Pattern Filing,Promoter & Promoter Group Shares / Total Shares,Jun 2026,0.0000,OK
+TCS.NS,FII Holding %,9.07%,9.07%,Official Shareholding Pattern Filing,Foreign Institutional Shares / Total Shares,Jun 2026,0.0000,OK
+TCS.NS,DII Holding %,13.41%,13.41%,Official Shareholding Pattern Filing,Domestic Institutional Shares / Total Shares,Jun 2026,0.0000,OK
+TCS.NS,P/E Ratio,17.82,17.82,Price + Official TTM EPS,Current Price / TTM EPS,TTM,0.0052,OK
+TCS.NS,PEG Ratio,385.58,385.58,P/E + YoY Growth,P/E / EPS Growth %,TTM,0.0000,OK
+TCS.NS,EV / EBITDA,11.52,11.52,EV + TTM EBIT,(Market Cap + Debt - Cash) / TTM EBITDA,TTM,0.0000,OK
+TCS.NS,Sector Median P/E,19.39,19.39,Sector Peer Engine,Median P/E of Sector Constituents,2026-06-30,0.0000,OK
+TCS.NS,Sector Breadth (> 200 EMA),75.00%,75.00%,Sector Peer Engine,% of Sector Stocks > 200 EMA,Live,0.0000,OK
+INFY.NS,Quarterly Revenue,"48,211.00 Cr","48,211.00 Cr",NSE XBRL / Official Filings,Directly Reported Filing Line Item,2026-06-30,0.0000,OK
+INFY.NS,Quarterly PAT,"7,775.00 Cr","7,775.00 Cr",NSE XBRL / Official Filings,Directly Reported Filing Line Item,2026-06-30,0.0000,OK
+INFY.NS,Quarterly EPS,19.15,19.15,NSE XBRL / Official Filings,Directly Reported Quarterly EPS,2026-06-30,0.0000,OK
+INFY.NS,TTM Revenue,"184,582.00 Cr","184,582.00 Cr",Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly Revenues,TTM,0.0000,OK
+INFY.NS,TTM PAT,"30,325.00 Cr","30,325.00 Cr",Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly PATs,TTM,0.0000,OK
+INFY.NS,TTM EPS,74.25,74.25,Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly EPS,TTM,0.0000,OK
+INFY.NS,Intraday Session VWAP,"₹1,175.82","₹1,175.82",5m Intraday Feed (yfinance),Sum(P_typical * Vol) / Sum(Vol),2026-08-07,0.0000,OK
+INFY.NS,Promoter Holding %,N/A,N/A,Official Shareholding Pattern Filing,Promoter & Promoter Group Shares / Total Shares,2026-06-30,N/A,N/A
+INFY.NS,FII Holding %,N/A,N/A,Official Shareholding Pattern Filing,Foreign Institutional Shares / Total Shares,2026-06-30,N/A,N/A
+INFY.NS,DII Holding %,N/A,N/A,Official Shareholding Pattern Filing,Domestic Institutional Shares / Total Shares,2026-06-30,N/A,N/A
+INFY.NS,P/E Ratio,15.83,15.27,Price + Official TTM EPS,Current Price / TTM EPS,TTM,0.5593,OK
+INFY.NS,PEG Ratio,105.89,105.89,P/E + YoY Growth,P/E / EPS Growth %,TTM,0.0000,OK
+INFY.NS,EV / EBITDA,10.87,10.87,EV + TTM EBIT,(Market Cap + Debt - Cash) / TTM EBITDA,TTM,0.0000,OK
+INFY.NS,Sector Median P/E,19.39,19.39,Sector Peer Engine,Median P/E of Sector Constituents,2026-06-30,0.0000,OK
+INFY.NS,Sector Breadth (> 200 EMA),75.00%,75.00%,Sector Peer Engine,% of Sector Stocks > 200 EMA,Live,0.0000,OK
+HDFCBANK.NS,Quarterly Revenue,"90,575.00 Cr","90,575.00 Cr",NSE XBRL / Official Filings,Directly Reported Filing Line Item,2026-06-30,0.0000,OK
+HDFCBANK.NS,Quarterly PAT,"20,383.00 Cr","20,383.00 Cr",NSE XBRL / Official Filings,Directly Reported Filing Line Item,2026-06-30,0.0000,OK
+HDFCBANK.NS,Quarterly EPS,12.50,12.50,NSE XBRL / Official Filings,Directly Reported Quarterly EPS,2026-06-30,0.0000,OK
+HDFCBANK.NS,TTM Revenue,"351,818.00 Cr","351,818.00 Cr",Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly Revenues,TTM,0.0000,OK
+HDFCBANK.NS,TTM PAT,"82,512.00 Cr","82,512.00 Cr",Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly PATs,TTM,0.0000,OK
+HDFCBANK.NS,TTM EPS,51.35,51.35,Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly EPS,TTM,0.0000,OK
+HDFCBANK.NS,Intraday Session VWAP,₹732.29,₹732.29,5m Intraday Feed (yfinance),Sum(P_typical * Vol) / Sum(Vol),2026-08-07,0.0000,OK
+HDFCBANK.NS,Promoter Holding %,N/A,N/A,Official Shareholding Pattern Filing,Promoter & Promoter Group Shares / Total Shares,2026-06-30,N/A,N/A
+HDFCBANK.NS,FII Holding %,N/A,N/A,Official Shareholding Pattern Filing,Foreign Institutional Shares / Total Shares,2026-06-30,N/A,N/A
+HDFCBANK.NS,DII Holding %,N/A,N/A,Official Shareholding Pattern Filing,Domestic Institutional Shares / Total Shares,2026-06-30,N/A,N/A
+HDFCBANK.NS,P/E Ratio,14.24,15.97,Price + Official TTM EPS,Current Price / TTM EPS,TTM,1.7390,MISMATCH
+HDFCBANK.NS,PEG Ratio,79.42,79.42,P/E + YoY Growth,P/E / EPS Growth %,TTM,0.0000,OK
+HDFCBANK.NS,EV / EBITDA,N/A,N/A,EV + TTM EBIT,(Market Cap + Debt - Cash) / TTM EBITDA,TTM,N/A,N/A
+HDFCBANK.NS,Sector Median P/E,68939841.74,68939841.74,Sector Peer Engine,Median P/E of Sector Constituents,2026-06-30,0.0000,OK
+HDFCBANK.NS,Sector Breadth (> 200 EMA),75.00%,75.00%,Sector Peer Engine,% of Sector Stocks > 200 EMA,Live,0.0000,OK
+SBIN.NS,Quarterly Revenue,"136,240.00 Cr","136,240.00 Cr",NSE XBRL / Official Filings,Directly Reported Filing Line Item,2026-06-30,0.0000,OK
+SBIN.NS,Quarterly PAT,"25,121.00 Cr","25,121.00 Cr",NSE XBRL / Official Filings,Directly Reported Filing Line Item,2026-06-30,0.0000,OK
+SBIN.NS,Quarterly EPS,26.12,26.12,NSE XBRL / Official Filings,Directly Reported Quarterly EPS,2026-06-30,0.0000,OK
+SBIN.NS,TTM Revenue,"525,746.00 Cr","525,746.00 Cr",Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly Revenues,TTM,0.0000,OK
+SBIN.NS,TTM PAT,"89,666.00 Cr","89,666.00 Cr",Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly PATs,TTM,0.0000,OK
+SBIN.NS,TTM EPS,93.39,93.39,Official Filings (4-Qtr Sum),Sum of 4 Distinct Quarterly EPS,TTM,0.0000,OK
+SBIN.NS,Intraday Session VWAP,"₹1,103.76","₹1,103.76",5m Intraday Feed (yfinance),Sum(P_typical * Vol) / Sum(Vol),2026-08-07,0.0000,OK
+SBIN.NS,Promoter Holding %,N/A,N/A,Official Shareholding Pattern Filing,Promoter & Promoter Group Shares / Total Shares,2026-06-30,N/A,N/A
+SBIN.NS,FII Holding %,N/A,N/A,Official Shareholding Pattern Filing,Foreign Institutional Shares / Total Shares,2026-06-30,N/A,N/A
+SBIN.NS,DII Holding %,N/A,N/A,Official Shareholding Pattern Filing,Domestic Institutional Shares / Total Shares,2026-06-30,N/A,N/A
+SBIN.NS,P/E Ratio,11.75,12.03,Price + Official TTM EPS,Current Price / TTM EPS,TTM,0.2848,OK
+SBIN.NS,PEG Ratio,118.28,118.28,P/E + YoY Growth,P/E / EPS Growth %,TTM,0.0000,OK
+SBIN.NS,EV / EBITDA,N/A,N/A,EV + TTM EBIT,(Market Cap + Debt - Cash) / TTM EBITDA,TTM,N/A,N/A
+SBIN.NS,Sector Median P/E,68939841.74,68939841.74,Sector Peer Engine,Median P/E of Sector Constituents,2026-06-30,0.0000,OK
+SBIN.NS,Sector Breadth (> 200 EMA),75.00%,75.00%,Sector Peer Engine,% of Sector Stocks > 200 EMA,Live,0.0000,OK

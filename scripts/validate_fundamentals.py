@@ -193,15 +193,13 @@ def validate_company(name: str, symbol: str) -> pd.DataFrame:
     add_row("Altman Z Score", altman_score, altman_score, altman_formula, is_ratio=True)
 
     # ==================== CLASS C: MARKET-DATA-DEPENDENT ====================
-    mcap = fund.get("MarketCap") or latest_q.get("market_cap")
-    ttm_pat = ttm_record.get("pat") or (rep_pat * 4 if rep_pat else None)
-    calc_pe = (mcap / ttm_pat) if (mcap and ttm_pat) else None
-    calc_peg = FinancialCalculator.compute_peg(calc_pe, eps_yoy)
-    calc_ev_ebitda = (mcap + (debt or 0)) / (rep_ebit * 4) if (mcap and rep_ebit) else None
+    eps_g_for_peg = (eps_yoy * 100.0) if (eps_yoy is not None and abs(eps_yoy) < 1.5) else eps_yoy
+    calc_peg = FinancialCalculator.compute_peg(calc_pe, eps_g_for_peg)
+    calc_ev_ebitda = (mcap + (debt or 0)) / (rep_ebit * 4) if (mcap and rep_ebit and not is_bank) else None
 
     add_row("PE", fund.get("PE") or calc_pe, calc_pe, "Market Cap / TTM PAT", is_ratio=True)
     add_row("PEG", fund.get("PEG") or calc_peg, calc_peg, "PE / EPS Growth %", is_ratio=True)
-    add_row("EV/EBITDA", calc_ev_ebitda, calc_ev_ebitda, "(Market Cap + Debt - Cash) / TTM EBITDA", is_ratio=True)
+    add_row("EV/EBITDA", calc_ev_ebitda if not is_bank else None, calc_ev_ebitda if not is_bank else None, "(Market Cap + Debt - Cash) / TTM EBITDA", is_ratio=True)
 
     return pd.DataFrame(rows)
 

@@ -1,151 +1,151 @@
 Company,Metric,App Value,Official/Calculated Value,Formula,Source,Status
-Reliance Industries,Revenue,"311,850.00 Cr","311,850.00 Cr",Directly Reported Filing Line Item,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,OK
-Reliance Industries,PAT,"23,196.00 Cr","23,196.00 Cr",Directly Reported Filing Line Item,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,OK
-Reliance Industries,EPS,15.48 INR,15.48 INR,Directly Reported Quarterly EPS,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,OK
-Reliance Industries,EBIT,"30,630.00 Cr","30,630.00 Cr",Directly Reported Profit Before Tax,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,OK
-Reliance Industries,Operating Profit,"30,630.00 Cr","30,630.00 Cr",Directly Reported Operating Profit,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,OK
-Reliance Industries,OCF,"99,110.00 Cr",N/A,Directly Reported Operating Cash Flow,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,CapEx,N/A,N/A,Directly Reported Capital Expenditure,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,ROE,8.82%,N/A,PAT / Shareholders' Equity,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,ROCE,7.52%,N/A,EBIT / (Total Assets - Current Liabilities),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,ROA,4.40%,N/A,PAT / Total Assets,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,Debt/Equity,1.01,N/A,Total Debt / Shareholders' Equity,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,OPM,9.82%,9.82%,Operating Profit / Revenue,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,OK
-Reliance Industries,NPM,7.44%,7.44%,PAT / Revenue,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,OK
-Reliance Industries,Free Cash Flow,"99,110.00 Cr",N/A,OCF +/- CapEx (Normalized),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,Sales QoQ,15.72%,15.72%,(Rev_t - Rev_t-1) / Rev_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,OK
-Reliance Industries,Sales YoY,N/A,N/A,(Rev_t - Rev_t-4) / Rev_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,PAT QoQ,4.06%,4.06%,(PAT_t - PAT_t-1) / PAT_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,OK
-Reliance Industries,PAT YoY,N/A,N/A,(PAT_t - PAT_t-4) / PAT_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,EPS QoQ,12.34%,12.34%,(EPS_t - EPS_t-1) / EPS_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,OK
-Reliance Industries,EPS YoY,N/A,N/A,(EPS_t - EPS_t-4) / EPS_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,3-year annual growth,N/A,N/A,(Rev_t / Rev_t-3)^(1/3) - 1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,Piotroski F Score,N/A,N/A,Piotroski 9-point Composite Score (2 Annual Filings),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,Altman Z Score,N/A,N/A,Altman Z = 1.2(WC/TA) + 1.4(RE/TA) + 3.3(EBIT/TA) + 0.6(MC/TL) + 0.999(Sales/TA),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,PE,N/A,N/A,Market Cap / TTM PAT,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,PEG,N/A,N/A,PE / EPS Growth %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Reliance Industries,EV/EBITDA,N/A,N/A,(Market Cap + Debt - Cash) / TTM EBITDA,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1695741_17072026075004_WEB.xml,N/A
-Tata Consultancy Services,Revenue,"72,275.00 Cr","72,275.00 Cr",Directly Reported Filing Line Item,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,OK
-Tata Consultancy Services,PAT,"13,420.00 Cr","13,420.00 Cr",Directly Reported Filing Line Item,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,OK
-Tata Consultancy Services,EPS,36.90 INR,36.90 INR,Directly Reported Quarterly EPS,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,OK
-Tata Consultancy Services,EBIT,"17,944.00 Cr","17,944.00 Cr",Directly Reported Profit Before Tax,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,OK
-Tata Consultancy Services,Operating Profit,"17,944.00 Cr","17,944.00 Cr",Directly Reported Operating Profit,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,OK
-Tata Consultancy Services,OCF,N/A,N/A,Directly Reported Operating Cash Flow,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,CapEx,N/A,N/A,Directly Reported Capital Expenditure,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,ROE,N/A,N/A,PAT / Shareholders' Equity,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,ROCE,N/A,N/A,EBIT / (Total Assets - Current Liabilities),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,ROA,N/A,N/A,PAT / Total Assets,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,Debt/Equity,N/A,N/A,Total Debt / Shareholders' Equity,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,OPM,24.83%,24.83%,Operating Profit / Revenue,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,OK
-Tata Consultancy Services,NPM,18.57%,18.57%,PAT / Revenue,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,OK
-Tata Consultancy Services,Free Cash Flow,N/A,N/A,OCF +/- CapEx (Normalized),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,Sales QoQ,N/A,N/A,(Rev_t - Rev_t-1) / Rev_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,Sales YoY,N/A,N/A,(Rev_t - Rev_t-4) / Rev_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,PAT QoQ,N/A,N/A,(PAT_t - PAT_t-1) / PAT_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,PAT YoY,N/A,N/A,(PAT_t - PAT_t-4) / PAT_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,EPS QoQ,N/A,N/A,(EPS_t - EPS_t-1) / EPS_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,EPS YoY,N/A,N/A,(EPS_t - EPS_t-4) / EPS_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,3-year annual growth,N/A,N/A,(Rev_t / Rev_t-3)^(1/3) - 1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,Piotroski F Score,0.00,0.00,Piotroski 9-point Composite Score (2 Annual Filings),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,OK
-Tata Consultancy Services,Altman Z Score,N/A,N/A,Altman Z = 1.2(WC/TA) + 1.4(RE/TA) + 3.3(EBIT/TA) + 0.6(MC/TL) + 0.999(Sales/TA),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,PE,N/A,N/A,Market Cap / TTM PAT,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,PEG,N/A,N/A,PE / EPS Growth %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Tata Consultancy Services,EV/EBITDA,N/A,N/A,(Market Cap + Debt - Cash) / TTM EBITDA,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1690004_09072026063620_WEB.xml,N/A
-Infosys,Revenue,"48,211.00 Cr","48,211.00 Cr",Directly Reported Filing Line Item,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,OK
-Infosys,PAT,"7,775.00 Cr","7,775.00 Cr",Directly Reported Filing Line Item,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,OK
-Infosys,EPS,19.17 INR,19.17 INR,Directly Reported Quarterly EPS,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,OK
-Infosys,EBIT,"11,028.00 Cr","11,028.00 Cr",Directly Reported Profit Before Tax,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,OK
-Infosys,Operating Profit,"11,028.00 Cr","11,028.00 Cr",Directly Reported Operating Profit,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,OK
-Infosys,OCF,N/A,N/A,Directly Reported Operating Cash Flow,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,CapEx,N/A,N/A,Directly Reported Capital Expenditure,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,ROE,N/A,N/A,PAT / Shareholders' Equity,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,ROCE,N/A,N/A,EBIT / (Total Assets - Current Liabilities),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,ROA,N/A,N/A,PAT / Total Assets,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,Debt/Equity,N/A,N/A,Total Debt / Shareholders' Equity,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,OPM,22.87%,22.87%,Operating Profit / Revenue,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,OK
-Infosys,NPM,16.13%,16.13%,PAT / Revenue,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,OK
-Infosys,Free Cash Flow,N/A,N/A,OCF +/- CapEx (Normalized),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,Sales QoQ,N/A,N/A,(Rev_t - Rev_t-1) / Rev_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,Sales YoY,N/A,N/A,(Rev_t - Rev_t-4) / Rev_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,PAT QoQ,N/A,N/A,(PAT_t - PAT_t-1) / PAT_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,PAT YoY,N/A,N/A,(PAT_t - PAT_t-4) / PAT_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,EPS QoQ,N/A,N/A,(EPS_t - EPS_t-1) / EPS_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,EPS YoY,N/A,N/A,(EPS_t - EPS_t-4) / EPS_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,3-year annual growth,N/A,N/A,(Rev_t / Rev_t-3)^(1/3) - 1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,Piotroski F Score,0.00,0.00,Piotroski 9-point Composite Score (2 Annual Filings),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,OK
-Infosys,Altman Z Score,N/A,N/A,Altman Z = 1.2(WC/TA) + 1.4(RE/TA) + 3.3(EBIT/TA) + 0.6(MC/TL) + 0.999(Sales/TA),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,PE,N/A,N/A,Market Cap / TTM PAT,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,PEG,N/A,N/A,PE / EPS Growth %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-Infosys,EV/EBITDA,N/A,N/A,(Market Cap + Debt - Cash) / TTM EBITDA,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1700136_23072026054446_WEB.xml,N/A
-HDFC Bank,Revenue,"153,863.52 Cr","153,863.52 Cr",Directly Reported Filing Line Item,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,PAT,"20,382.69 Cr","20,382.69 Cr",Directly Reported Filing Line Item,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,EPS,12.47 INR,12.47 INR,Directly Reported Quarterly EPS,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,EBIT,"27,193.16 Cr","27,193.16 Cr",Directly Reported Profit Before Tax,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,Operating Profit,"27,193.16 Cr","27,193.16 Cr",Directly Reported Operating Profit,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,OCF,"-33,438.11 Cr",N/A,Directly Reported Operating Cash Flow,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,CapEx,N/A,N/A,Directly Reported Capital Expenditure,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,NII,"27,193.16 Cr","27,193.16 Cr",Interest Earned - Interest Expended,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,NIM/NIIM,N/A,N/A,Calculated NIM Proxy = NII / Total Assets,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,CASA,N/A,N/A,Directly Reported CASA Ratio %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,GNPA,N/A,N/A,Directly Reported Gross NPA %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,NNPA,N/A,N/A,Directly Reported Net NPA %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,CAR,N/A,N/A,Directly Reported Capital Adequacy Ratio %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,Advances,N/A,N/A,Directly Reported Total Advances,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,Deposits,N/A,N/A,Directly Reported Total Deposits,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,ROE,13.07%,N/A,PAT / Shareholders' Equity,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,ROCE,2.29%,N/A,EBIT / (Total Assets - Current Liabilities),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,ROA,1.55%,N/A,PAT / Total Assets,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,Debt/Equity,8.44,N/A,Total Debt / Shareholders' Equity,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,OPM,17.67%,17.67%,Operating Profit / Revenue,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,NPM,13.25%,13.25%,PAT / Revenue,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,Free Cash Flow,"-33,438.11 Cr",N/A,OCF +/- CapEx (Normalized),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,Sales QoQ,4.31%,4.31%,(Rev_t - Rev_t-1) / Rev_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,Sales YoY,N/A,N/A,(Rev_t - Rev_t-4) / Rev_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,PAT QoQ,-1.49%,-1.49%,(PAT_t - PAT_t-1) / PAT_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,PAT YoY,N/A,N/A,(PAT_t - PAT_t-4) / PAT_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,EPS QoQ,-2.73%,-2.73%,(EPS_t - EPS_t-1) / EPS_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,OK
-HDFC Bank,EPS YoY,N/A,N/A,(EPS_t - EPS_t-4) / EPS_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,Advance Growth,N/A,N/A,(Advances_t - Advances_t-4) / Advances_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,Deposit Growth,N/A,N/A,(Deposits_t - Deposits_t-4) / Deposits_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,3-year annual growth,N/A,N/A,(Rev_t / Rev_t-3)^(1/3) - 1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,Piotroski F Score,N/A,N/A,Piotroski 9-point Composite Score (2 Annual Filings),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,Altman Z Score,N/A,N/A,N/A for Banking Institutions,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,PE,N/A,N/A,Market Cap / TTM PAT,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,PEG,N/A,N/A,PE / EPS Growth %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-HDFC Bank,EV/EBITDA,N/A,N/A,(Market Cap + Debt - Cash) / TTM EBITDA,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml,N/A
-State Bank of India,Revenue,"214,592.96 Cr","214,592.96 Cr",Directly Reported Filing Line Item,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,PAT,"24,579.04 Cr","24,579.04 Cr",Directly Reported Filing Line Item,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,EPS,26.12 INR,26.12 INR,Directly Reported Quarterly EPS,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,EBIT,"32,883.80 Cr","32,883.80 Cr",Directly Reported Profit Before Tax,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,Operating Profit,"32,883.80 Cr","32,883.80 Cr",Directly Reported Operating Profit,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,OCF,"50,697.98 Cr",N/A,Directly Reported Operating Cash Flow,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,CapEx,N/A,N/A,Directly Reported Capital Expenditure,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,NII,"32,883.80 Cr","32,883.80 Cr",Interest Earned - Interest Expended,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,NIM/NIIM,N/A,N/A,Calculated NIM Proxy = NII / Total Assets,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,CASA,N/A,N/A,Directly Reported CASA Ratio %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,GNPA,N/A,N/A,Directly Reported Gross NPA %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,NNPA,N/A,N/A,Directly Reported Net NPA %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,CAR,N/A,N/A,Directly Reported Capital Adequacy Ratio %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,Advances,N/A,N/A,Directly Reported Total Advances,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,Deposits,N/A,N/A,Directly Reported Total Deposits,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,ROE,13.85%,N/A,PAT / Shareholders' Equity,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,ROCE,1.51%,N/A,EBIT / (Total Assets - Current Liabilities),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,ROA,1.02%,N/A,PAT / Total Assets,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,Debt/Equity,13.53,N/A,Total Debt / Shareholders' Equity,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,OPM,15.32%,15.32%,Operating Profit / Revenue,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,NPM,11.45%,11.45%,PAT / Revenue,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,Free Cash Flow,"50,697.98 Cr",N/A,OCF +/- CapEx (Normalized),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,Sales QoQ,-1.88%,-1.88%,(Rev_t - Rev_t-1) / Rev_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,Sales YoY,N/A,N/A,(Rev_t - Rev_t-4) / Rev_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,PAT QoQ,12.36%,12.36%,(PAT_t - PAT_t-1) / PAT_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,PAT YoY,N/A,N/A,(PAT_t - PAT_t-4) / PAT_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,EPS QoQ,13.12%,13.12%,(EPS_t - EPS_t-1) / EPS_t-1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,OK
-State Bank of India,EPS YoY,N/A,N/A,(EPS_t - EPS_t-4) / EPS_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,Advance Growth,N/A,N/A,(Advances_t - Advances_t-4) / Advances_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,Deposit Growth,N/A,N/A,(Deposits_t - Deposits_t-4) / Deposits_t-4,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,3-year annual growth,N/A,N/A,(Rev_t / Rev_t-3)^(1/3) - 1,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,Piotroski F Score,N/A,N/A,Piotroski 9-point Composite Score (2 Annual Filings),https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,Altman Z Score,N/A,N/A,N/A for Banking Institutions,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,PE,N/A,N/A,Market Cap / TTM PAT,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,PEG,N/A,N/A,PE / EPS Growth %,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
-State Bank of India,EV/EBITDA,N/A,N/A,(Market Cap + Debt - Cash) / TTM EBITDA,https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1709692_07082026034917_WEB.xml,N/A
+Reliance Industries,Revenue,"309,468.00 Cr","309,468.00 Cr",Directly Reported Filing Line Item,NSE XBRL Official Filing,OK
+Reliance Industries,PAT,"23,196.00 Cr","23,196.00 Cr",Directly Reported Filing Line Item,NSE XBRL Official Filing,OK
+Reliance Industries,EPS,15.48 INR,15.48 INR,Directly Reported Quarterly EPS,NSE XBRL Official Filing,OK
+Reliance Industries,EBIT,"47,517.00 Cr","47,517.00 Cr",Directly Reported Profit Before Tax,NSE XBRL Official Filing,OK
+Reliance Industries,Operating Profit,"47,517.00 Cr","47,517.00 Cr",Directly Reported Operating Profit,NSE XBRL Official Filing,OK
+Reliance Industries,OCF,N/A,N/A,Directly Reported Operating Cash Flow,NSE XBRL Official Filing,N/A
+Reliance Industries,CapEx,N/A,N/A,Directly Reported Capital Expenditure,NSE XBRL Official Filing,N/A
+Reliance Industries,ROE,10.62%,10.62%,PAT / Shareholders' Equity,NSE XBRL Official Filing,OK
+Reliance Industries,ROCE,12.29%,9.42%,EBIT / (Total Assets - Current Liabilities),NSE XBRL Official Filing,MISMATCH
+Reliance Industries,ROA,4.60%,4.60%,PAT / Total Assets,NSE XBRL Official Filing,OK
+Reliance Industries,Debt/Equity,0.77,0.77,Total Debt / Shareholders' Equity,NSE XBRL Official Filing,OK
+Reliance Industries,OPM,15.35%,15.35%,Operating Profit / Revenue,NSE XBRL Official Filing,OK
+Reliance Industries,NPM,7.50%,7.50%,PAT / Revenue,NSE XBRL Official Filing,OK
+Reliance Industries,Free Cash Flow,"192,113.00 Cr",N/A,OCF +/- CapEx (Normalized),NSE XBRL Official Filing,N/A
+Reliance Industries,Sales QoQ,5.24%,5.24%,(Rev_t - Rev_t-1) / Rev_t-1,NSE XBRL Official Filing,OK
+Reliance Industries,Sales YoY,27.02%,27.02%,(Rev_t - Rev_t-4) / Rev_t-4,NSE XBRL Official Filing,OK
+Reliance Industries,PAT QoQ,12.66%,12.66%,(PAT_t - PAT_t-1) / PAT_t-1,NSE XBRL Official Filing,OK
+Reliance Industries,PAT YoY,-24.65%,-24.65%,(PAT_t - PAT_t-4) / PAT_t-4,NSE XBRL Official Filing,OK
+Reliance Industries,EPS QoQ,23.44%,23.44%,(EPS_t - EPS_t-1) / EPS_t-1,NSE XBRL Official Filing,OK
+Reliance Industries,EPS YoY,-22.41%,-22.41%,(EPS_t - EPS_t-4) / EPS_t-4,NSE XBRL Official Filing,OK
+Reliance Industries,3-year annual growth,N/A,N/A,(Rev_t / Rev_t-3)^(1/3) - 1,NSE XBRL Official Filing,N/A
+Reliance Industries,Piotroski F Score,N/A,N/A,Piotroski 9-point Composite Score (2 Annual Filings),NSE XBRL Official Filing,N/A
+Reliance Industries,Altman Z Score,N/A,N/A,Altman Z = 1.2(WC/TA) + 1.4(RE/TA) + 3.3(EBIT/TA) + 0.6(MC/TL) + 0.999(Sales/TA),NSE XBRL Official Filing,N/A
+Reliance Industries,PE,20.49,20.49,Market Cap / TTM PAT,NSE XBRL Official Filing,OK
+Reliance Industries,PEG,0.87,N/A,PE / EPS Growth %,NSE XBRL Official Filing,N/A
+Reliance Industries,EV/EBITDA,10.39,10.39,(Market Cap + Debt - Cash) / TTM EBITDA,NSE XBRL Official Filing,OK
+Tata Consultancy Services,Revenue,"72,275.00 Cr","72,275.00 Cr",Directly Reported Filing Line Item,NSE XBRL Official Filing,OK
+Tata Consultancy Services,PAT,"13,420.00 Cr","13,420.00 Cr",Directly Reported Filing Line Item,NSE XBRL Official Filing,OK
+Tata Consultancy Services,EPS,36.90 INR,36.90 INR,Directly Reported Quarterly EPS,NSE XBRL Official Filing,OK
+Tata Consultancy Services,EBIT,"17,944.00 Cr","18,556.00 Cr",Directly Reported Profit Before Tax,NSE XBRL Official Filing,MISMATCH
+Tata Consultancy Services,Operating Profit,"18,556.00 Cr","18,556.00 Cr",Directly Reported Operating Profit,NSE XBRL Official Filing,OK
+Tata Consultancy Services,OCF,N/A,N/A,Directly Reported Operating Cash Flow,NSE XBRL Official Filing,N/A
+Tata Consultancy Services,CapEx,N/A,N/A,Directly Reported Capital Expenditure,NSE XBRL Official Filing,N/A
+Tata Consultancy Services,ROE,26.50%,26.50%,PAT / Shareholders' Equity,NSE XBRL Official Filing,OK
+Tata Consultancy Services,ROCE,25.31%,25.31%,EBIT / (Total Assets - Current Liabilities),NSE XBRL Official Filing,OK
+Tata Consultancy Services,ROA,18.30%,18.30%,PAT / Total Assets,NSE XBRL Official Filing,OK
+Tata Consultancy Services,Debt/Equity,0.01,0.01,Total Debt / Shareholders' Equity,NSE XBRL Official Filing,OK
+Tata Consultancy Services,OPM,24.83%,25.67%,Operating Profit / Revenue,NSE XBRL Official Filing,MISMATCH
+Tata Consultancy Services,NPM,18.57%,18.57%,PAT / Revenue,NSE XBRL Official Filing,OK
+Tata Consultancy Services,Free Cash Flow,N/A,N/A,OCF +/- CapEx (Normalized),NSE XBRL Official Filing,N/A
+Tata Consultancy Services,Sales QoQ,2.23%,2.23%,(Rev_t - Rev_t-1) / Rev_t-1,NSE XBRL Official Filing,OK
+Tata Consultancy Services,Sales YoY,13.93%,13.93%,(Rev_t - Rev_t-4) / Rev_t-4,NSE XBRL Official Filing,OK
+Tata Consultancy Services,PAT QoQ,-2.64%,-2.64%,(PAT_t - PAT_t-1) / PAT_t-1,NSE XBRL Official Filing,OK
+Tata Consultancy Services,PAT YoY,4.69%,4.69%,(PAT_t - PAT_t-4) / PAT_t-4,NSE XBRL Official Filing,OK
+Tata Consultancy Services,EPS QoQ,-2.69%,-2.69%,(EPS_t - EPS_t-1) / EPS_t-1,NSE XBRL Official Filing,OK
+Tata Consultancy Services,EPS YoY,4.62%,4.62%,(EPS_t - EPS_t-4) / EPS_t-4,NSE XBRL Official Filing,OK
+Tata Consultancy Services,3-year annual growth,N/A,N/A,(Rev_t / Rev_t-3)^(1/3) - 1,NSE XBRL Official Filing,N/A
+Tata Consultancy Services,Piotroski F Score,0.00,0.00,Piotroski 9-point Composite Score (2 Annual Filings),NSE XBRL Official Filing,OK
+Tata Consultancy Services,Altman Z Score,N/A,N/A,Altman Z = 1.2(WC/TA) + 1.4(RE/TA) + 3.3(EBIT/TA) + 0.6(MC/TL) + 0.999(Sales/TA),NSE XBRL Official Filing,N/A
+Tata Consultancy Services,PE,17.73,17.73,Market Cap / TTM PAT,NSE XBRL Official Filing,OK
+Tata Consultancy Services,PEG,3.84,3.84,PE / EPS Growth %,NSE XBRL Official Filing,OK
+Tata Consultancy Services,EV/EBITDA,11.96,11.96,(Market Cap + Debt - Cash) / TTM EBITDA,NSE XBRL Official Filing,OK
+Infosys,Revenue,"48,211.00 Cr","48,211.00 Cr",Directly Reported Filing Line Item,NSE XBRL Official Filing,OK
+Infosys,PAT,"7,775.00 Cr","7,775.00 Cr",Directly Reported Filing Line Item,NSE XBRL Official Filing,OK
+Infosys,EPS,19.17 INR,19.15 INR,Directly Reported Quarterly EPS,NSE XBRL Official Filing,OK
+Infosys,EBIT,"11,028.00 Cr","11,409.00 Cr",Directly Reported Profit Before Tax,NSE XBRL Official Filing,MISMATCH
+Infosys,Operating Profit,"11,409.00 Cr","11,409.00 Cr",Directly Reported Operating Profit,NSE XBRL Official Filing,OK
+Infosys,OCF,N/A,N/A,Directly Reported Operating Cash Flow,NSE XBRL Official Filing,N/A
+Infosys,CapEx,N/A,N/A,Directly Reported Capital Expenditure,NSE XBRL Official Filing,N/A
+Infosys,ROE,15.32%,15.32%,PAT / Shareholders' Equity,NSE XBRL Official Filing,OK
+Infosys,ROCE,17.21%,17.21%,EBIT / (Total Assets - Current Liabilities),NSE XBRL Official Filing,OK
+Infosys,ROA,11.73%,11.73%,PAT / Total Assets,NSE XBRL Official Filing,OK
+Infosys,Debt/Equity,0.00,0.00,Total Debt / Shareholders' Equity,NSE XBRL Official Filing,OK
+Infosys,OPM,22.87%,23.66%,Operating Profit / Revenue,NSE XBRL Official Filing,MISMATCH
+Infosys,NPM,16.13%,16.13%,PAT / Revenue,NSE XBRL Official Filing,OK
+Infosys,Free Cash Flow,N/A,N/A,OCF +/- CapEx (Normalized),NSE XBRL Official Filing,N/A
+Infosys,Sales QoQ,3.90%,3.90%,(Rev_t - Rev_t-1) / Rev_t-1,NSE XBRL Official Filing,OK
+Infosys,Sales YoY,14.03%,14.03%,(Rev_t - Rev_t-4) / Rev_t-4,NSE XBRL Official Filing,OK
+Infosys,PAT QoQ,-8.63%,-8.63%,(PAT_t - PAT_t-1) / PAT_t-1,NSE XBRL Official Filing,OK
+Infosys,PAT YoY,12.29%,12.29%,(PAT_t - PAT_t-4) / PAT_t-4,NSE XBRL Official Filing,OK
+Infosys,EPS QoQ,-8.64%,-8.64%,(EPS_t - EPS_t-1) / EPS_t-1,NSE XBRL Official Filing,OK
+Infosys,EPS YoY,14.95%,14.95%,(EPS_t - EPS_t-4) / EPS_t-4,NSE XBRL Official Filing,OK
+Infosys,3-year annual growth,N/A,N/A,(Rev_t / Rev_t-3)^(1/3) - 1,NSE XBRL Official Filing,N/A
+Infosys,Piotroski F Score,0.00,0.00,Piotroski 9-point Composite Score (2 Annual Filings),NSE XBRL Official Filing,OK
+Infosys,Altman Z Score,N/A,N/A,Altman Z = 1.2(WC/TA) + 1.4(RE/TA) + 3.3(EBIT/TA) + 0.6(MC/TL) + 0.999(Sales/TA),NSE XBRL Official Filing,N/A
+Infosys,PE,15.69,15.69,Market Cap / TTM PAT,NSE XBRL Official Filing,OK
+Infosys,PEG,1.05,1.05,PE / EPS Growth %,NSE XBRL Official Filing,OK
+Infosys,EV/EBITDA,10.43,10.43,(Market Cap + Debt - Cash) / TTM EBITDA,NSE XBRL Official Filing,OK
+HDFC Bank,Revenue,"153,863.52 Cr","90,575.00 Cr",Directly Reported Filing Line Item,NSE XBRL Official Filing,MISMATCH
+HDFC Bank,PAT,"20,382.69 Cr","20,383.00 Cr",Directly Reported Filing Line Item,NSE XBRL Official Filing,OK
+HDFC Bank,EPS,12.47 INR,12.50 INR,Directly Reported Quarterly EPS,NSE XBRL Official Filing,OK
+HDFC Bank,EBIT,"27,193.16 Cr",N/A,Directly Reported Profit Before Tax,NSE XBRL Official Filing,N/A
+HDFC Bank,Operating Profit,"-15,342.00 Cr","-15,342.00 Cr",Directly Reported Operating Profit,NSE XBRL Official Filing,OK
+HDFC Bank,OCF,N/A,N/A,Directly Reported Operating Cash Flow,NSE XBRL Official Filing,N/A
+HDFC Bank,CapEx,N/A,N/A,Directly Reported Capital Expenditure,NSE XBRL Official Filing,N/A
+HDFC Bank,NII,"36,230.00 Cr","36,230.00 Cr",Interest Earned - Interest Expended,NSE XBRL Official Filing,OK
+HDFC Bank,NIM/NIIM,5.97%,5.97%,Calculated NIM Proxy = NII / Total Assets,NSE XBRL Official Filing,OK
+HDFC Bank,CASA,N/A,N/A,Directly Reported CASA Ratio %,NSE XBRL Official Filing,N/A
+HDFC Bank,GNPA,N/A,N/A,Directly Reported Gross NPA %,NSE XBRL Official Filing,N/A
+HDFC Bank,NNPA,N/A,N/A,Directly Reported Net NPA %,NSE XBRL Official Filing,N/A
+HDFC Bank,CAR,N/A,N/A,Directly Reported Capital Adequacy Ratio %,NSE XBRL Official Filing,N/A
+HDFC Bank,Advances,"607,097.00 Cr","607,097.00 Cr",Directly Reported Total Advances,NSE XBRL Official Filing,OK
+HDFC Bank,Deposits,"607,097.00 Cr","607,097.00 Cr",Directly Reported Total Deposits,NSE XBRL Official Filing,OK
+HDFC Bank,ROE,32.28%,32.28%,PAT / Shareholders' Equity,NSE XBRL Official Filing,OK
+HDFC Bank,ROCE,N/A,N/A,EBIT / (Total Assets - Current Liabilities),NSE XBRL Official Filing,N/A
+HDFC Bank,ROA,3.36%,3.36%,PAT / Total Assets,NSE XBRL Official Filing,OK
+HDFC Bank,Debt/Equity,N/A,N/A,Total Debt / Shareholders' Equity,NSE XBRL Official Filing,N/A
+HDFC Bank,OPM,17.67%,-16.94%,Operating Profit / Revenue,NSE XBRL Official Filing,MISMATCH
+HDFC Bank,NPM,22.50%,22.50%,PAT / Revenue,NSE XBRL Official Filing,OK
+HDFC Bank,Free Cash Flow,"109,616.41 Cr",N/A,OCF +/- CapEx (Normalized),NSE XBRL Official Filing,N/A
+HDFC Bank,Sales QoQ,3.89%,3.89%,(Rev_t - Rev_t-1) / Rev_t-1,NSE XBRL Official Filing,OK
+HDFC Bank,Sales YoY,3.67%,3.67%,(Rev_t - Rev_t-4) / Rev_t-4,NSE XBRL Official Filing,OK
+HDFC Bank,PAT QoQ,-3.28%,-3.28%,(PAT_t - PAT_t-1) / PAT_t-1,NSE XBRL Official Filing,OK
+HDFC Bank,PAT YoY,19.27%,19.27%,(PAT_t - PAT_t-4) / PAT_t-4,NSE XBRL Official Filing,OK
+HDFC Bank,EPS QoQ,-5.45%,-5.45%,(EPS_t - EPS_t-1) / EPS_t-1,NSE XBRL Official Filing,OK
+HDFC Bank,EPS YoY,17.92%,17.92%,(EPS_t - EPS_t-4) / EPS_t-4,NSE XBRL Official Filing,OK
+HDFC Bank,Advance Growth,0.00%,0.00%,(Advances_t - Advances_t-4) / Advances_t-4,NSE XBRL Official Filing,OK
+HDFC Bank,Deposit Growth,0.00%,0.00%,(Deposits_t - Deposits_t-4) / Deposits_t-4,NSE XBRL Official Filing,OK
+HDFC Bank,3-year annual growth,N/A,N/A,(Rev_t / Rev_t-3)^(1/3) - 1,NSE XBRL Official Filing,N/A
+HDFC Bank,Piotroski F Score,N/A,N/A,Piotroski 9-point Composite Score (2 Annual Filings),NSE XBRL Official Filing,N/A
+HDFC Bank,Altman Z Score,N/A,N/A,N/A for Banking Institutions,NSE XBRL Official Filing,N/A
+HDFC Bank,PE,13.65,13.65,Market Cap / TTM PAT,NSE XBRL Official Filing,OK
+HDFC Bank,PEG,0.76,0.76,PE / EPS Growth %,NSE XBRL Official Filing,OK
+HDFC Bank,EV/EBITDA,N/A,N/A,(Market Cap + Debt - Cash) / TTM EBITDA,NSE XBRL Official Filing,N/A
+State Bank of India,Revenue,"214,592.96 Cr","136,240.00 Cr",Directly Reported Filing Line Item,NSE XBRL Official Filing,MISMATCH
+State Bank of India,PAT,"24,579.04 Cr","25,121.00 Cr",Directly Reported Filing Line Item,NSE XBRL Official Filing,MISMATCH
+State Bank of India,EPS,26.12 INR,26.12 INR,Directly Reported Quarterly EPS,NSE XBRL Official Filing,OK
+State Bank of India,EBIT,"32,883.80 Cr",N/A,Directly Reported Profit Before Tax,NSE XBRL Official Filing,N/A
+State Bank of India,Operating Profit,"-10,938.00 Cr","-10,938.00 Cr",Directly Reported Operating Profit,NSE XBRL Official Filing,OK
+State Bank of India,OCF,N/A,N/A,Directly Reported Operating Cash Flow,NSE XBRL Official Filing,N/A
+State Bank of India,CapEx,N/A,N/A,Directly Reported Capital Expenditure,NSE XBRL Official Filing,N/A
+State Bank of India,NII,"54,496.00 Cr","54,496.00 Cr",Interest Earned - Interest Expended,NSE XBRL Official Filing,OK
+State Bank of India,NIM/NIIM,2.02%,2.02%,Calculated NIM Proxy = NII / Total Assets,NSE XBRL Official Filing,OK
+State Bank of India,CASA,N/A,N/A,Directly Reported CASA Ratio %,NSE XBRL Official Filing,N/A
+State Bank of India,GNPA,N/A,N/A,Directly Reported Gross NPA %,NSE XBRL Official Filing,N/A
+State Bank of India,NNPA,N/A,N/A,Directly Reported Net NPA %,NSE XBRL Official Filing,N/A
+State Bank of India,CAR,N/A,N/A,Directly Reported Capital Adequacy Ratio %,NSE XBRL Official Filing,N/A
+State Bank of India,Advances,"2,699,161.00 Cr","2,699,161.00 Cr",Directly Reported Total Advances,NSE XBRL Official Filing,OK
+State Bank of India,Deposits,"2,699,161.00 Cr","2,699,161.00 Cr",Directly Reported Total Deposits,NSE XBRL Official Filing,OK
+State Bank of India,ROE,15.57%,15.57%,PAT / Shareholders' Equity,NSE XBRL Official Filing,OK
+State Bank of India,ROCE,N/A,N/A,EBIT / (Total Assets - Current Liabilities),NSE XBRL Official Filing,N/A
+State Bank of India,ROA,0.93%,0.93%,PAT / Total Assets,NSE XBRL Official Filing,OK
+State Bank of India,Debt/Equity,N/A,N/A,Total Debt / Shareholders' Equity,NSE XBRL Official Filing,N/A
+State Bank of India,OPM,15.32%,-8.03%,Operating Profit / Revenue,NSE XBRL Official Filing,MISMATCH
+State Bank of India,NPM,18.44%,18.44%,PAT / Revenue,NSE XBRL Official Filing,OK
+State Bank of India,Free Cash Flow,"29,734.43 Cr",N/A,OCF +/- CapEx (Normalized),NSE XBRL Official Filing,N/A
+State Bank of India,Sales QoQ,3.94%,3.94%,(Rev_t - Rev_t-1) / Rev_t-1,NSE XBRL Official Filing,OK
+State Bank of India,Sales YoY,8.36%,8.36%,(Rev_t - Rev_t-4) / Rev_t-4,NSE XBRL Official Filing,OK
+State Bank of India,PAT QoQ,22.49%,22.49%,(PAT_t - PAT_t-1) / PAT_t-1,NSE XBRL Official Filing,OK
+State Bank of India,PAT YoY,13.56%,13.56%,(PAT_t - PAT_t-4) / PAT_t-4,NSE XBRL Official Filing,OK
+State Bank of India,EPS QoQ,22.74%,22.74%,(EPS_t - EPS_t-1) / EPS_t-1,NSE XBRL Official Filing,OK
+State Bank of India,EPS YoY,9.93%,9.93%,(EPS_t - EPS_t-4) / EPS_t-4,NSE XBRL Official Filing,OK
+State Bank of India,Advance Growth,0.00%,0.00%,(Advances_t - Advances_t-4) / Advances_t-4,NSE XBRL Official Filing,OK
+State Bank of India,Deposit Growth,0.00%,0.00%,(Deposits_t - Deposits_t-4) / Deposits_t-4,NSE XBRL Official Filing,OK
+State Bank of India,3-year annual growth,N/A,N/A,(Rev_t / Rev_t-3)^(1/3) - 1,NSE XBRL Official Filing,N/A
+State Bank of India,Piotroski F Score,N/A,N/A,Piotroski 9-point Composite Score (2 Annual Filings),NSE XBRL Official Filing,N/A
+State Bank of India,Altman Z Score,N/A,N/A,N/A for Banking Institutions,NSE XBRL Official Filing,N/A
+State Bank of India,PE,11.40,11.30,Market Cap / TTM PAT,NSE XBRL Official Filing,OK
+State Bank of India,PEG,0.50,1.14,PE / EPS Growth %,NSE XBRL Official Filing,MISMATCH
+State Bank of India,EV/EBITDA,N/A,N/A,(Market Cap + Debt - Cash) / TTM EBITDA,NSE XBRL Official Filing,N/A

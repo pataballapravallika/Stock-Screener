@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from indicators.momentum import rsi, macd
-from indicators.trend import moving_averages, high_52_week, breakout as calc_breakout, bollinger_bands
+from indicators.trend import moving_averages, high_52_week, breakout as calc_breakout, bollinger_bands, vwap
 from indicators.trend import breakout_status
 from indicators.volatility import supertrend, adr
 from scoring.config import (
@@ -25,9 +25,7 @@ def compute_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df = adr(df)
     df = supertrend(df)
 
-    typical_price = (df["High"] + df["Low"] + df["Close"]) / 3
-    cumulative_volume = df["Volume"].cumsum().replace(0, np.nan)
-    df["VWAP"] = (typical_price * df["Volume"]).cumsum() / cumulative_volume
+    df = vwap(df)
 
     low14 = df["Low"].rolling(14).min()
     high14 = df["High"].rolling(14).max()

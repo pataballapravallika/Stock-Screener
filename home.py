@@ -262,25 +262,16 @@ def add_indicators(df):
         .mean()
     )
 
-    # VWAP
+    # VWAP (Cumulative Volume Weighted Average Price)
     typical_price = (
         df["High"] +
         df["Low"] +
         df["Close"]
     ) / 3
-
-    cumulative_volume = (
-        df["Volume"]
-        .cumsum()
-        .replace(0, np.nan)
-    )
-
-    df["VWAP"] = (
-        (typical_price * df["Volume"])
-        .cumsum()
-        /
-        cumulative_volume
-    )
+    vol = df["Volume"].replace(0, np.nan).fillna(0)
+    cum_pv = (typical_price * vol).cumsum()
+    cum_vol = vol.cumsum().replace(0, np.nan)
+    df["VWAP"] = cum_pv / cum_vol
 
     # 20-day breakout
     previous_high = (

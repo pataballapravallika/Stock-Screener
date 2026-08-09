@@ -16,6 +16,9 @@ from fundamentals.ratios import compute_roe, compute_roa, compute_roce, compute_
 from fundamentals.altman import compute_altman_z
 from fundamentals.piotroski import compute_piotroski_f_score
 
+from data.msi_canslim import calculate_msi_ratings
+from data.trendlyne_dvm import calculate_trendlyne_dvm
+
 from data.ui_helpers import render_official_data_header
 
 st.set_page_config(page_title="Dashboard", layout="wide")
@@ -107,9 +110,39 @@ c1.metric("Overall Score", f"{overall_score:.0f}/100")
 c2.metric("Signal", signal, delta=f"Tech: {tech_pct:.0f}% | Fund: {fund_pct:.0f}%")
 c3.metric("Sector", sector)
 c4.metric("Industry", industry)
-c5.metric("Market Cap", f"${fund.get('MarketCap', 0)/1e9:.2f}B" if fund.get("MarketCap") else "N/A")
+c5.metric("Market Cap", f"₹{fund.get('MarketCap', 0):,.0f} Cr" if fund.get("MarketCap") else "N/A")
 
 st.divider()
+
+# ============================================================
+# MARKETSMITH INDIA (MSI) CANSLIM RATINGS
+# ============================================================
+st.subheader("MarketSmith India (MSI) CANSLIM Ratings")
+msi = calculate_msi_ratings(symbol, prices=df, fund=fund)
+
+m1, m2, m3, m4, m5 = st.columns(5)
+m1.metric("Master Score", f"{msi['MasterScore']}/99", delta=msi["MasterGrade"])
+m2.metric("EPS Rating", f"{msi['EPSRating']}/99", delta="Growth Rank")
+m3.metric("RS Rating", f"{msi['RSRating']}/99", delta="Price Strength")
+m4.metric("Buyer Demand", msi["BuyerDemandGrade"], delta=msi["BuyerDemandStatus"])
+m5.metric("Institutional Sponsorship", msi["SponsorshipGrade"], delta=f"{msi['InstitutionalPct']}% Inst.")
+
+st.divider()
+
+# ============================================================
+# TRENDLYNE DVM (DURABILITY, VALUATION, MOMENTUM) SCORES
+# ============================================================
+st.subheader("Trendlyne DVM Ratings (Durability, Valuation, Momentum)")
+dvm = calculate_trendlyne_dvm(symbol, prices=df, fund=fund)
+
+d1, d2, d3, d4 = st.columns(4)
+d1.metric("Trendlyne DVM Score", f"{dvm['DVMScore']}/100", delta=dvm["DVMCategory"])
+d2.metric("Durability (D)", f"{dvm['DurabilityScore']}/100", delta=f"{dvm['DurabilityGrade']} ({dvm['DurabilityStatus']})")
+d3.metric("Valuation (V)", f"{dvm['ValuationScore']}/100", delta=f"{dvm['ValuationGrade']} ({dvm['ValuationStatus']})")
+d4.metric("Momentum (M)", f"{dvm['MomentumScore']}/100", delta=f"{dvm['MomentumGrade']} ({dvm['MomentumStatus']})")
+
+st.divider()
+
 
 st.subheader("Score Breakdown")
 col1, col2 = st.columns(2)

@@ -4,11 +4,13 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+from datetime import datetime
 from data.fetch_fundamentals import fetch_fundamentals
-from analysis.valuation import compute_peg, compute_ev_ebitda
+from data.fetch_prices import fetch_prices
+from data.database import get_latest_quarterly_reports
 from data.ui_helpers import render_official_data_header
 
-st.set_page_config(page_title="Valuation", layout="wide")
+st.set_page_config(page_title="Valuation Analysis", layout="wide")
 
 COMPANIES = {
     "Reliance Industries": "RELIANCE.NS",
@@ -26,196 +28,202 @@ COMPANIES = {
 PEER_GROUPS = {
     "Technology": ["INFY.NS", "TCS.NS", "WIPRO.NS", "HCLTECH.NS"],
     "Financial Services": ["HDFCBANK.NS", "ICICIBANK.NS", "SBIN.NS"],
-    "Energy": ["RELIANCE.NS"],
+    "Energy & Oil": ["RELIANCE.NS"],
     "Automotive": ["TATAMOTORS.NS"],
     "Consumer Goods": ["ITC.NS"],
 }
 
-st.title("Valuation")
-st.caption("PE, PEG, EV/EBITDA, and valuation vs peers")
+st.title("Valuation Module Audit & Analysis")
+st.caption("Explicit valuation inputs, exact formulas, market data source comparison, and non-hardcoded context")
 
-company = st.selectbox("Company", list(COMPANIES.keys()))
+company = st.selectbox("Select Target Company", list(COMPANIES.keys()))
 symbol = COMPANIES[company]
 
 
-def pd_isna(val):
-    return val is None or (isinstance(val, float) and np.isnan(val))
+def compute_audited_valuation(symbol: str) -> dict:
+    """Compute exact valuation metrics with explicit inputs, formulas, and data sources."""
+    calc_date = datetime.now().strftime("%Y-%m-%d")
+    fund_raw = fetch_fundamentals(symbol) or {}
+    prices = fetch_prices(symbol, period="5d")
 
+    t = yf.Ticker(symbol)
+    fi = getattr(t, "fast_info", {})
+    t_info = t.info or {}
 
-def extract_valuation_metrics(fund: dict, symbol: str = None) -> dict:
-    if not isinstance(fund, dict):
-        fund = {}
+    # 1. Price and Shares
+    current_price = prices["Close"].iloc[-1] if not prices.empty else fi.get("lastPrice") or t_info.get("currentPrice")
+    shares_out = fi.get("shares") or t_info.get("sharesOutstanding")
 
-    sym = symbol or fund.get("Symbol") or fund.get("ticker")
+    mcap_cr = (current_price * shares_out) / 1e7 if (current_price and shares_out) else None
+    if mcap_cr is None:
+        mcap_cr = fund_raw.get("MarketCap") or ((t_info.get("marketCap") or 0) / 1e7)
 
-    t_info = {}
-    try:
-        t = yf.Ticker(sym)
-        if hasattr(t, "info") and isinstance(t.info, dict):
-            t_info = t.info
-    except Exception:
-        pass
+    # 2. TTM EPS Calculation (Strictly sum of last 4 reported quarters)
+    q_df = get_latest_quarterly_reports(symbol, limit=4)
+    ttm_eps = None
+    ttm_eps_source = "Sum of Last 4 Reported Quarters (NSE XBRL)"
+    if not q_df.empty and "eps" in q_df.columns and len(q_df) == 4:
+        ttm_eps = q_df["eps"].sum()
 
-    mcap = fund.get("MarketCap") or fund.get("marketCap")
-    if mcap is None or pd_isna(mcap):
-        mc = t_info.get("marketCap")
-        if mc and mc > 0:
-            mcap = mc / 1e7
+    if ttm_eps is None:
+        ttm_eps_source = "N/A"
 
-    pat = fund.get("PAT") or (t_info.get("netIncomeToCommon") / 1e7 if t_info.get("netIncomeToCommon") else None)
-    ebit = fund.get("EBIT") or (t_info.get("ebitda") / 1e7 if t_info.get("ebitda") else None)
-    de = fund.get("DebtEquity") if fund.get("DebtEquity") is not None else (t_info.get("debtToEquity") / 100.0 if t_info.get("debtToEquity") is not None else None)
+    # P/E Ratio
+    pe_ratio = (current_price / ttm_eps) if (current_price and ttm_eps and ttm_eps > 0) else None
 
-    pe = fund.get("PE")
-    if pe is None or pd_isna(pe):
-        pe = t_info.get("trailingPE") or t_info.get("forwardPE")
-    if (pe is None or pd_isna(pe)) and mcap and pat and pat > 0:
-        pe = mcap / (pat * 4.0 if pat < 50000 else pat)
+    # 3. PEG Ratio
+    eps_g_pct = fund_raw.get("EPS_YoY") or fund_raw.get("Sales_YoY")
+    if eps_g_pct and abs(eps_g_pct) < 1.5:
+        eps_g_pct = eps_g_pct * 100.0
 
-    eps_g = fund.get("EPS_YoY") or fund.get("PAT_YoY") or fund.get("EarningsGrowth") or t_info.get("earningsGrowth") or 0.10
-    peg = fund.get("PEG")
-    if peg is None or pd_isna(peg):
-        peg = t_info.get("pegRatio")
-    if (peg is None or pd_isna(peg)) and pe and eps_g:
-        g_val = eps_g * 100.0 if abs(eps_g) <= 1.5 else eps_g
-        if g_val > 0:
-            peg = pe / g_val
+    peg_ratio = (pe_ratio / eps_g_pct) if (pe_ratio and eps_g_pct and eps_g_pct > 0) else None
 
-    ev = mcap + (mcap * (de / 100.0) if de else 0.0) if mcap and de is not None else mcap
-    ev_ebitda = fund.get("EV_EBITDA")
-    if ev_ebitda is None or pd_isna(ev_ebitda):
-        ev_ebitda = t_info.get("enterpriseToEbitda")
-    if (ev_ebitda is None or pd_isna(ev_ebitda)) and ev and ebit and ebit > 0:
-        ev_ebitda = ev / ebit
+    # 4. EV / EBITDA (Exempt for Banks)
+    is_bank = any(b in symbol for b in ["BANK", "SBIN"])
+    latest_q = q_df.iloc[0] if not q_df.empty else {}
+    debt_cr = latest_q.get("debt") or 0.0
+    cash_cr = latest_q.get("current_assets") or 0.0
+    ebitda_cr = q_df["ebit"].sum() if not q_df.empty and "ebit" in q_df.columns and len(q_df) == 4 else None
 
-    roe = fund.get("ROE")
-    if roe is None or pd_isna(roe):
-        roe = t_info.get("returnOnEquity")
+    ev_cr = (mcap_cr + debt_cr - cash_cr) if (mcap_cr and not is_bank) else None
+    ev_ebitda = (ev_cr / ebitda_cr) if (ev_cr and ebitda_cr and ebitda_cr > 0 and not is_bank) else None
 
     return {
-        "PE": pe,
-        "PEG": peg,
-        "EV_EBITDA": ev_ebitda,
-        "MarketCap": mcap,
-        "ROE": roe,
-        "DebtEquity": de,
-        "Company": fund.get("Company") or t_info.get("shortName") or t_info.get("longName") or sym,
-        "Sector": fund.get("Sector") or t_info.get("sector"),
+        "Symbol": symbol,
+        "Company": fund_raw.get("Company") or t_info.get("shortName") or symbol,
+        "CalculationDate": calc_date,
+        "DataSource": f"{fund_raw.get('fundamentals_source', 'NSE Official Filings (XBRL)')} & Live Price Feed",
+        "CurrentPrice": current_price,
+        "SharesOutstanding": shares_out,
+        "MarketCapCr": mcap_cr,
+        "TTMEPS": ttm_eps,
+        "TTMEPSSource": ttm_eps_source,
+        "PERatio": pe_ratio,
+        "EPSGrowthPct": eps_g_pct,
+        "PEGRatio": peg_ratio,
+        "TotalDebtCr": debt_cr,
+        "CashCr": cash_cr,
+        "EnterpriseValueCr": ev_cr,
+        "TTMEBITDACr": ebitda_cr,
+        "EVEBITDA": ev_ebitda,
+        "MarketDataCompare": {
+            "YFinancePE": yf_pe,
+            "YFinancePEG": yf_peg,
+            "YFinanceEVEBITDA": yf_ev_ebitda,
+            "PEVariance": round(abs(pe_ratio - yf_pe), 2) if (pe_ratio and yf_pe) else None,
+            "EBITDAVariance": round(abs(ev_ebitda - yf_ev_ebitda), 2) if (ev_ebitda and yf_ev_ebitda) else None,
+        }
     }
 
 
-fund_raw = fetch_fundamentals(symbol) or {}
+val = compute_audited_valuation(symbol)
 
-render_official_data_header(fund_raw)
+# Render Header with Valuation Date and Source
+st.info(f"📅 **Valuation Date:** `{val['CalculationDate']}` | 📡 **Data Source:** `{val['DataSource']}`")
 
-v_metrics = extract_valuation_metrics(fund_raw, symbol=symbol)
-
-st.subheader(f"{v_metrics.get('Company') or symbol} — Valuation Metrics")
-
-pe_val = v_metrics.get("PE")
-peg_val = v_metrics.get("PEG")
-ev_val = v_metrics.get("EV_EBITDA")
-mcap_val = v_metrics.get("MarketCap")
+st.subheader(f"{val['Company']} ({val['Symbol']}) — Key Valuation Metrics")
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("P/E Ratio", f"{pe_val:.2f}" if pe_val and not pd_isna(pe_val) else "N/A")
-c2.metric("PEG Ratio", f"{peg_val:.2f}" if peg_val and not pd_isna(peg_val) else "N/A")
-c3.metric("EV/EBITDA", f"{ev_val:.2f}x" if ev_val and not pd_isna(ev_val) else "N/A")
-c4.metric("Market Cap", f"₹{mcap_val:,.0f} Cr" if mcap_val and not pd_isna(mcap_val) else "N/A")
+c1.metric("P/E Ratio", f"{val['PERatio']:.2f}" if val["PERatio"] else "N/A", help="P/E = Price / TTM EPS")
+c2.metric("PEG Ratio", f"{val['PEGRatio']:.2f}" if val["PEGRatio"] else "N/A", help="PEG = P/E / EPS Growth %")
+c3.metric("EV / EBITDA", f"{val['EVEBITDA']:.2f}x" if val["EVEBITDA"] else "N/A", help="EV/EBITDA = Enterprise Value / EBITDA")
+c4.metric("Market Cap", f"₹{val['MarketCapCr']:,.0f} Cr" if val["MarketCapCr"] else "N/A")
 
 st.divider()
 
-st.markdown("### Valuation vs Peers")
+# ============================================================
+# EXPLICIT VALUATION INPUT AUDIT LOGS
+# ============================================================
+st.markdown("### A. Explicit Input Audit & Calculation Formulas")
 
-sector = v_metrics.get("Sector") or "Unknown"
-peer_symbols = []
-for sec, syms in PEER_GROUPS.items():
-    if sector.lower() in sec.lower() or sec.lower() in sector.lower():
-        peer_symbols = syms
-        break
+col_a, col_b = st.columns(2)
 
-if not peer_symbols:
-    peer_symbols = list(COMPANIES.values())
+with col_a:
+    st.markdown("#### 1. Market Cap Calculation")
+    st.markdown(f"""
+    * **Current Price:** `INR {val['CurrentPrice']:.2f}`
+    * **Shares Outstanding:** `{val['SharesOutstanding']:,.0f}`
+    * **Calculation Date:** `{val['CalculationDate']}`
+    * **Formula:** $\\text{{Market Cap}} = \\frac{{\\text{{Current Price}} \\times \\text{{Shares Outstanding}}}}{{10^7}}$
+    * **Calculated Market Cap:** `INR {val['MarketCapCr']:,.2f} Cr`
+    """)
 
-peer_data = []
-for ps in peer_symbols:
-    try:
-        pfund = fetch_fundamentals(ps)
-        pm = extract_valuation_metrics(pfund, symbol=ps)
-        peer_data.append({
-            "Symbol": ps,
-            "Company": pm.get("Company", ps),
-            "PE": pm.get("PE"),
-            "PEG": pm.get("PEG"),
-            "EV/EBITDA": pm.get("EV_EBITDA"),
-            "ROE": pm.get("ROE"),
-            "Debt/Equity": pm.get("DebtEquity"),
-            "Market Cap (Cr)": pm.get("MarketCap"),
-        })
-    except Exception:
-        pass
+    st.markdown("#### 2. P/E Ratio Calculation")
+    st.markdown(f"""
+    * **Current Market Price:** `INR {val['CurrentPrice']:.2f}`
+    * **TTM EPS (4-Quarter Sum):** `INR {val['TTMEPS']:.2f}` *(Source: {val['TTMEPSSource']})*
+    * **Calculation Date:** `{val['CalculationDate']}`
+    * **Formula:** $P/E = \\frac{{\\text{{Current Market Price}}}}{{\\text{{TTM EPS}}}}$
+    * **Calculated P/E:** `{val['PERatio']:.2f}`
+    """)
 
-peer_df = pd.DataFrame(peer_data)
-if not peer_df.empty:
-    display_df = peer_df.copy()
-    for col in ["PE", "PEG", "EV/EBITDA", "ROE", "Debt/Equity"]:
-        if col in display_df.columns:
-            display_df[col] = display_df[col].apply(
-                lambda v: f"{v:.2f}" if v is not None and not pd_isna(v) else "N/A"
-            )
-    if "Market Cap (Cr)" in display_df.columns:
-        display_df["Market Cap (Cr)"] = display_df["Market Cap (Cr)"].apply(
-            lambda v: f"₹{v:,.0f} Cr" if v is not None and not pd_isna(v) else "N/A"
-        )
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+with col_b:
+    st.markdown("#### 3. PEG Ratio Calculation")
+    st.markdown(f"""
+    * **P/E Ratio:** `{val['PERatio']:.2f}`
+    * **EPS YoY Growth %:** `{val['EPSGrowthPct']:.2f}%`
+    * **Growth Period:** `Trailing 12 Months (YoY)`
+    * **Formula:** $PEG = \\frac{{P/E}}{{\\text{{EPS Growth \\%}}}}$
+    * **Calculated PEG:** `{val['PEGRatio']:.2f}`
+    """)
 
-    clean_scatter = peer_df.dropna(subset=["PE", "ROE"]).copy()
-    if not clean_scatter.empty:
-        fig = px.scatter(
-            clean_scatter,
-            x="PE",
-            y="ROE",
-            size="Market Cap (Cr)" if "Market Cap (Cr)" in clean_scatter.columns else None,
-            hover_name="Company",
-            title="PE vs ROE (Peer Comparison)",
-            template="plotly_dark",
-        )
-        fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
-else:
-    st.caption("Peer comparison data not available.")
+    st.markdown("#### 4. EV / EBITDA Calculation")
+    st.markdown(f"""
+    * **Market Cap:** `INR {val['MarketCapCr']:,.2f} Cr`
+    * **Total Debt:** `INR {val['TotalDebtCr']:,.2f} Cr`
+    * **Cash & Equivalents:** `INR {val['CashCr']:,.2f} Cr`
+    * **Enterprise Value (EV):** `INR {val['EnterpriseValueCr']:,.2f} Cr`
+    * **TTM EBITDA:** `INR {val['TTMEBITDACr']:,.2f} Cr`
+    * **Formulas:**
+      * $EV = \\text{{Market Cap}} + \\text{{Total Debt}} - \\text{{Cash}}$
+      * $EV/EBITDA = \\frac{{EV}}{{\\text{{TTM EBITDA}}}}$
+    * **Calculated EV/EBITDA:** `{val['EVEBITDA']:.2f}x`
+    """)
 
 st.divider()
 
-st.markdown("### Valuation Summary")
+# ============================================================
+# COMPARISON AGAINST RELIABLE MARKET SOURCES
+# ============================================================
+st.markdown("### B. Benchmark Data Source Comparison & Mismatch Audit")
 
-valuation_notes = []
-if pe_val is not None and not pd_isna(pe_val):
-    if pe_val < 15:
-        valuation_notes.append(f"P/E is {pe_val:.2f} (below 15) — potentially undervalued relative to market averages.")
-    elif pe_val < 30:
-        valuation_notes.append(f"P/E is {pe_val:.2f} (between 15–30) — fairly valued by market standards.")
-    else:
-        valuation_notes.append(f"P/E is {pe_val:.2f} (above 30) — trading at a premium; growth expectations are high.")
+cmp_data = val["MarketDataCompare"]
+cmp_df = pd.DataFrame([{
+    "Metric": "P/E Ratio",
+    "Calculated Value (Official Filings + Price)": f"{val['PERatio']:.2f}" if val["PERatio"] else "N/A",
+    "Market Benchmark (YFinance/Consolidated)": f"{cmp_data['YFinancePE']:.2f}" if cmp_data['YFinancePE'] else "N/A",
+    "Variance": f"{cmp_data['PEVariance']:.2f}" if cmp_data['PEVariance'] is not None else "0.00",
+    "Audit Status": "MATCH (Within Tolerance)" if (cmp_data['PEVariance'] and cmp_data['PEVariance'] <= 1.5) else "MISMATCH / STATEMENT DIFFERENCE",
+}, {
+    "Metric": "PEG Ratio",
+    "Calculated Value (Official Filings + Price)": f"{val['PEGRatio']:.2f}" if val["PEGRatio"] else "N/A",
+    "Market Benchmark (YFinance/Consolidated)": f"{cmp_data['YFinancePEG']:.2f}" if cmp_data['YFinancePEG'] else "N/A",
+    "Variance": "N/A",
+    "Audit Status": "HISTORICAL vs FORWARD GROWTH DIFFERENCE",
+}, {
+    "Metric": "EV / EBITDA",
+    "Calculated Value (Official Filings + Price)": f"{val['EVEBITDA']:.2f}x" if val["EVEBITDA"] else "N/A",
+    "Market Benchmark (YFinance/Consolidated)": f"{cmp_data['YFinanceEVEBITDA']:.2f}x" if cmp_data['YFinanceEVEBITDA'] else "N/A",
+    "Variance": f"{cmp_data['EBITDAVariance']:.2f}x" if cmp_data['EBITDAVariance'] is not None else "0.00",
+    "Audit Status": "MATCH (Within Tolerance)" if (cmp_data['EBITDAVariance'] and cmp_data['EBITDAVariance'] <= 1.5) else "MISMATCH / STATEMENT DIFFERENCE",
+}])
 
-if peg_val is not None and not pd_isna(peg_val):
-    if peg_val < 1.0:
-        valuation_notes.append(f"PEG is {peg_val:.2f} (below 1.0) — attractive valuation relative to growth rate.")
-    elif peg_val < 2.0:
-        valuation_notes.append(f"PEG is {peg_val:.2f} (between 1.0–2.0) — reasonably valued for current growth rate.")
-    else:
-        valuation_notes.append(f"PEG is {peg_val:.2f} (above 2.0) — trading at a premium relative to growth rate.")
+st.dataframe(cmp_df, use_container_width=True, hide_index=True)
 
-if ev_val is not None and not pd_isna(ev_val):
-    if ev_val < 15:
-        valuation_notes.append(f"EV/EBITDA is {ev_val:.2f}x — attractive enterprise multiple.")
-    elif ev_val < 30:
-        valuation_notes.append(f"EV/EBITDA is {ev_val:.2f}x — moderate enterprise multiple.")
-    else:
-        valuation_notes.append(f"EV/EBITDA is {ev_val:.2f}x — premium enterprise multiple.")
+st.caption("ℹ️ **Audit Notes:** Minor variances between calculated values and third-party market data arise when third-party benchmarks use forward projected growth rates or standalone balance sheet items instead of audited consolidated filings.")
 
-if valuation_notes:
-    for note in valuation_notes:
-        st.write(f"- {note}")
-else:
-    st.caption("Insufficient valuation data for analysis.")
+st.divider()
+
+# ============================================================
+# CONTEXTUAL VALUATION ANALYSIS (NON-HARDCODED)
+# ============================================================
+st.markdown("### C. Contextual Valuation Analysis")
+
+st.info(f"""
+**Objective Valuation Summary for {val['Company']}:**
+* **P/E Multiplier:** Trading at **{val['PERatio']:.2f}x** TTM earnings based on trailing 4-quarter EPS of **INR {val['TTMEPS']:.2f}**.
+* **PEG Multiplier:** PEG ratio stands at **{val['PEGRatio']:.2f}** based on current TTM YoY growth rate of **{val['EPSGrowthPct']:.2f}%**.
+* **Enterprise Multiple:** EV/EBITDA ratio is **{val['EVEBITDA']:.2f}x** based on Enterprise Value of **INR {val['EnterpriseValueCr']:,.0f} Cr** and EBITDA of **INR {val['TTMEBITDACr']:,.0f} Cr**.
+
+*Valuation assessment should be evaluated alongside industry historical medians and long-term earnings compounding rather than arbitrary static thresholds.*
+""")

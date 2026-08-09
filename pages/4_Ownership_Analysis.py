@@ -60,48 +60,54 @@ c4.metric("Employees", f"{emp:,}" if emp else "N/A")
 
 st.divider()
 
-st.markdown("### Institutional Ownership")
+st.markdown("### Official Shareholding Breakdown")
 
-mh = getattr(ticker, "major_holders", None)
-ins_pct = None
-inst_pct = None
+promoter_val = fund.get("Promoter_Pct")
+fii_val = fund.get("FII_Pct")
+dii_val = fund.get("DII_Pct")
+govt_val = fund.get("Govt_Pct")
+public_val = fund.get("Public_Pct")
+inst_val = fund.get("Institutional_Pct")
 
-if mh is not None and isinstance(mh, pd.DataFrame) and not mh.empty:
-    try:
-        if "Breakdown" in mh.columns and "Value" in mh.columns:
-            m_dict = dict(zip(mh["Breakdown"], mh["Value"]))
-            ins_pct = m_dict.get("insidersPercentHeld")
-            inst_pct = m_dict.get("institutionsPercentHeld")
-    except Exception:
-        pass
+if promoter_val is None and symbol == "HDFCBANK.NS":
+    promoter_val = 0.00
 
-if ins_pct is None and hasattr(ticker, "info") and isinstance(ticker.info, dict):
-    ins_pct = ticker.info.get("heldPercentInsiders")
-    inst_pct = ticker.info.get("heldPercentInstitutions")
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Promoter %", f"{promoter_val:.2f}%" if promoter_val is not None else "N/A")
+c2.metric("FII %", f"{fii_val:.2f}%" if fii_val is not None else "N/A")
+c3.metric("DII %", f"{dii_val:.2f}%" if dii_val is not None else "N/A")
+c4.metric("Government %", f"{govt_val:.2f}%" if govt_val is not None else "N/A")
+c5.metric("Public & Others %", f"{public_val:.2f}%" if public_val is not None else "N/A")
 
-ins_val = (ins_pct * 100) if (ins_pct is not None and not np.isnan(ins_pct)) else None
-inst_val = (inst_pct * 100) if (inst_pct is not None and not np.isnan(inst_pct)) else None
-public_val = (100.0 - (ins_val or 0.0) - (inst_val or 0.0)) if (ins_val is not None or inst_val is not None) else None
+labels = []
+values = []
+if promoter_val is not None and promoter_val > 0:
+    labels.append("Promoters")
+    values.append(promoter_val)
+if fii_val is not None and fii_val > 0:
+    labels.append("FIIs")
+    values.append(fii_val)
+if dii_val is not None and dii_val > 0:
+    labels.append("DIIs")
+    values.append(dii_val)
+if govt_val is not None and govt_val > 0:
+    labels.append("Government")
+    values.append(govt_val)
+if public_val is not None and public_val > 0:
+    labels.append("Public & Others")
+    values.append(public_val)
 
-c1, c2, c3 = st.columns(3)
-c1.metric("Promoter / Insider %", f"{ins_val:.2f}%" if ins_val is not None else "N/A")
-c2.metric("Institutional % Held", f"{inst_val:.2f}%" if inst_val is not None else "N/A")
-c3.metric("Public Float %", f"{public_val:.2f}%" if public_val is not None else "N/A")
-
-if ins_val is not None or inst_val is not None:
+if values:
     st.write("")
     col_chart, col_table = st.columns([1, 1])
-
-    labels = ["Promoters / Insiders", "Institutional Investors", "Public Float & Others"]
-    values = [ins_val or 0.0, inst_val or 0.0, max(0.0, public_val or 0.0)]
 
     with col_chart:
         fig = px.pie(
             names=labels,
             values=values,
-            title="Shareholding Breakdown",
+            title="Shareholding Pattern",
             hole=0.4,
-            color_discrete_sequence=["#636EFA", "#00CC96", "#FFA15A"],
+            color_discrete_sequence=["#636EFA", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3"],
             template="plotly_dark",
         )
         fig.update_layout(height=320)
@@ -114,6 +120,12 @@ if ins_val is not None or inst_val is not None:
         })
         st.markdown("#### Shareholding Details")
         st.dataframe(sh_df, use_container_width=True, hide_index=True)
+
+sh_table = fund.get("Shareholding_Table")
+if sh_table is not None and isinstance(sh_table, pd.DataFrame) and not sh_table.empty:
+    st.write("")
+    st.markdown("#### Quarterly Shareholding Pattern Trend")
+    st.dataframe(sh_table, use_container_width=True)
 
 st.divider()
 

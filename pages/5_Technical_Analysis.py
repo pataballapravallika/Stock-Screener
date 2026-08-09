@@ -55,16 +55,28 @@ df = compute_technical_indicators(df)
 latest = df.iloc[-1]
 tech_result = score_technical(latest)
 
-st.subheader(f"{company} — Technical Overview")
+from indicators.vwap_engine import compute_session_vwap
+
+vwap_res = compute_session_vwap(symbol)
+session_vwap_val = vwap_res.get("session_vwap")
+session_vwap_str = f"₹{session_vwap_val:,.2f}" if session_vwap_val else "N/A"
+vwap_diff_str = f"{vwap_res.get('vwap_diff', 0):+.2f} ({vwap_res.get('vwap_diff_pct', 0):+.2f}%)" if session_vwap_val else None
 
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("RS Rating", f"{tech_result['percentage']:.0f}/100")
 c1.metric("Signal", tech_result["signal"])
 
+c2.metric(
+    "Intraday Session VWAP",
+    session_vwap_str,
+    delta=vwap_diff_str,
+    help=f"Exact 5m Intraday Session VWAP ({vwap_res.get('timeframe', '5m Session')} for {vwap_res.get('session_date', 'Today')})"
+)
+
 ema_cols = ["EMA9", "EMA21", "EMA50", "EMA100", "EMA150", "EMA200"]
 ema_vals = [latest.get(c) for c in ema_cols]
 ema_alignment = all(ema_vals[i] > ema_vals[i+1] for i in range(len(ema_vals)-1)) if all(pd.notna(v) for v in ema_vals) else None
-c2.metric("EMA Alignment", "Bullish" if ema_alignment else "Bearish/Mixed" if ema_alignment is False else "N/A")
+c3.metric("EMA Alignment", "Bullish" if ema_alignment else "Bearish/Mixed" if ema_alignment is False else "N/A")
 
 vol_ratio = latest["Volume"] / latest["Volume_MA20"] if pd.notna(latest.get("Volume_MA20")) and latest.get("Volume_MA20", 0) > 0 else None
 c3.metric("Volume Ratio", f"{vol_ratio:.2f}x" if vol_ratio else "N/A")

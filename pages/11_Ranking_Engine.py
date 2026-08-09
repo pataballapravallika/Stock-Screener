@@ -12,6 +12,8 @@ from scoring.fundamental_score import score_fundamental, safe_float
 from scoring.banking_score import score_banking
 from scoring.combined_score import combined_score
 from scoring.config import DEFAULT_CONFIG, ScoringConfig, score_category, signal_badge
+from data.msi_canslim import calculate_msi_ratings
+from data.trendlyne_dvm import calculate_trendlyne_dvm
 
 st.set_page_config(page_title="Ranking Engine", layout="wide")
 
@@ -95,11 +97,22 @@ for company, symbol in COMPANIES.items():
         overall_score = combined["combined_percentage"]
         signal = combined["combined_signal"]
 
+        msi_data = calculate_msi_ratings(symbol, prices=df, fund=fund)
+        dvm_data = calculate_trendlyne_dvm(symbol, prices=df, fund=fund)
+
         ranking_results.append({
             "Company": company,
             "Symbol": symbol,
             "Sector": sector,
             "Overall Score": overall_score,
+            "Trendlyne DVM": dvm_data["DVMScore"],
+            "Durability (D)": dvm_data["DurabilityGrade"],
+            "Valuation (V)": dvm_data["ValuationGrade"],
+            "Momentum (M)": dvm_data["MomentumGrade"],
+            "MSI Master Score": msi_data["MasterScore"],
+            "EPS Rating": msi_data["EPSRating"],
+            "RS Rating": msi_data["RSRating"],
+            "Buyer Demand": msi_data["BuyerDemandGrade"],
             "Tech Score": tech_result["percentage"],
             "Fund Score": fund_score_result["percentage"],
             "Signal": signal,
@@ -112,10 +125,8 @@ for company, symbol in COMPANIES.items():
             "Debt/Equity": fund.get("DebtEquity"),
             "Altman Z": fund.get("AltmanZScore"),
             "Piotroski": fund.get("PiotroskiFScore"),
-            "Shares Outstanding": fund.get("SharesOutstanding"),
-            "Float Shares": fund.get("FloatShares"),
-            "Promoter %": fund.get("InsidersPercentHeld"),
-            "Institutional %": fund.get("InstitutionsPercentHeld"),
+            "Promoter %": f"{fund.get('Promoter_Pct'):.2f}%" if fund.get("Promoter_Pct") is not None else "N/A",
+            "Institutional %": f"{fund.get('Institutional_Pct'):.2f}%" if fund.get("Institutional_Pct") is not None else "N/A",
         })
     except Exception:
         continue
@@ -131,9 +142,11 @@ rank_df = rank_df.sort_values("Overall Score", ascending=False)
 rank_df["Rank"] = range(1, len(rank_df) + 1)
 
 st.subheader("Overall Ranking")
-display_cols = ["Rank", "Company", "Symbol", "Sector", "Overall Score", "Tech Score", "Fund Score", "Signal", "Category",
-                "Revenue Growth", "EPS Growth", "ROE", "ROCE", "ROA", "Debt/Equity", "Altman Z", "Piotroski",
-                "Shares Outstanding", "Float Shares", "Promoter %", "Institutional %"]
+display_cols = ["Rank", "Company", "Symbol", "Sector", "Overall Score", "Trendlyne DVM", "Durability (D)", "Valuation (V)", "Momentum (M)",
+                "MSI Master Score", "EPS Rating", "RS Rating", "Buyer Demand",
+                "Tech Score", "Fund Score", "Signal", "Category", "Revenue Growth", "EPS Growth", "ROE", "ROCE", "ROA", "Debt/Equity",
+                "Altman Z", "Piotroski", "Promoter %", "Institutional %"]
+
 display_cols = [c for c in display_cols if c in rank_df.columns]
 st.dataframe(
     rank_df[display_cols].reset_index(drop=True),
@@ -336,12 +349,14 @@ for name in selected_companies:
         if prior_pat is not None and prior_sales is not None and prior_sales != 0:
             prior_npm = prior_pat / prior_sales
     results["NPM_YoY"] = yoy_growth(latest_npm, prior_npm) if latest_npm is not None and prior_npm is not None else None
-    promoter_pct, institutions_pct, inst_history = (None, None, [])
+    promoter_pct = fund.get("Promoter_Pct")
+    institutions_pct = fund.get("Institutional_Pct")
+    sh_hist = fund.get("Shareholding_History") or []
     results["Promoter %"] = promoter_pct
     results["Institutional %"] = institutions_pct
-    results["Shareholding History"] = "; ".join([f"{date}: {pct * 100:.2f}%" for date, pct in inst_history]) if inst_history else "N/A"
-    if len(inst_history) >= 2:
-        results["Institutional_Change"] = inst_history[0][1] - inst_history[1][1]
+    results["Shareholding History"] = "; ".join([f"{date}: {pct:.2f}%" for date, pct in sh_hist]) if sh_hist else "N/A"
+    if len(sh_hist) >= 2:
+        results["Institutional_Change"] = round(sh_hist[0][1] - sh_hist[-1][1], 2)
     else:
         results["Institutional_Change"] = None
     results["Promoter_Change"] = None

@@ -25,19 +25,28 @@ def bollinger_bands(df, period=20):
     return df
 
 
-def vwap(df):
+def vwap(df, period=14):
+    if df is None or df.empty or "Close" not in df.columns or "High" not in df.columns or "Volume" not in df.columns:
+        return df
+
     typical = (
         df["High"] +
         df["Low"] +
         df["Close"]
     ) / 3
 
-    df["VWAP"] = (
-        (typical * df["Volume"]).cumsum() /
-        df["Volume"].cumsum()
-    )
+    vol = df["Volume"].replace(0, pd.NA).fillna(0)
 
+    if period is not None and period > 0:
+        cum_pv = (typical * vol).rolling(period, min_periods=1).sum()
+        cum_vol = vol.rolling(period, min_periods=1).sum().replace(0, pd.NA)
+    else:
+        cum_pv = (typical * vol).cumsum()
+        cum_vol = vol.cumsum().replace(0, pd.NA)
+
+    df["VWAP"] = cum_pv / cum_vol
     return df
+
 
 
 def high_52_week(df):

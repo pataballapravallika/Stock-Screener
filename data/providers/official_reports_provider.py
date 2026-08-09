@@ -129,15 +129,36 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         self.calculator = FinancialCalculator()
         init_db()
 
-    @staticmethod
-    def _ticker_to_slug(symbol: str) -> str:
+    def _ticker_to_slug(self, symbol: str) -> str:
         parts = symbol.split(".")
-        return parts[0]
+        clean = parts[0].upper()
+        html = self._get(f"{self.BASE_URL}/company/{clean}/consolidated/") or self._get(f"{self.BASE_URL}/company/{clean}/")
+        if html:
+            return clean
+        try:
+            resp = self.session.get(f"{self.BASE_URL}/api/company/search/?q={clean}", timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data and len(data) > 0:
+                    found_url = data[0].get("url", "")
+                    p_list = [p for p in found_url.split("/") if p]
+                    if "company" in p_list:
+                        idx = p_list.index("company")
+                        if idx + 1 < len(p_list):
+                            return p_list[idx + 1]
+        except Exception:
+            pass
+        return clean
 
     def _get(self, url: str, params: dict = None) -> Optional[str]:
+        if not hasattr(self, "_html_cache"):
+            self._html_cache = {}
+        if url in self._html_cache and self._html_cache[url]:
+            return self._html_cache[url]
         try:
-            resp = self.session.get(url, params=params, timeout=30)
+            resp = self.session.get(url, params=params, timeout=12)
             if resp.status_code == 200:
+                self._html_cache[url] = resp.text
                 return resp.text
         except Exception:
             pass
@@ -145,7 +166,7 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
     def get_company_info(self, symbol: str) -> Dict[str, Any]:
         cached = get_company_info(symbol)
-        if cached:
+        if cached and cached.get("company_name") and cached.get("sector") and cached.get("sector") != "Unknown":
             return {
                 "ticker": symbol,
                 "company_name": cached.get("company_name"),
@@ -156,7 +177,7 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             }
 
         slug = self._ticker_to_slug(symbol)
-        html = self._get(f"{self.BASE_URL}/company/{slug}/consolidated/")
+        html = self._get(f"{self.BASE_URL}/company/{slug}/consolidated/") or self._get(f"{self.BASE_URL}/company/{slug}/")
         if not html:
             return {}
 
@@ -196,7 +217,13 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         return None
 
     def _extract_sector(self, soup) -> Optional[str]:
-        for p in soup.find_all("p", class_="sub"):
+        peer_sec = soup.find("section", id="peers")
+        if peer_sec:
+            links = peer_sec.find_all("a", href=lambda h: h and "/market/" in h)
+            link_texts = [a.get_text(strip=True) for a in links]
+            if len(link_texts) >= 1:
+                return link_texts[0]
+        for p in soup.find_all(["p", "span"]):
             text = p.get_text(strip=True)
             if "Sector" in text:
                 parts = text.split(":")
@@ -205,7 +232,13 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         return None
 
     def _extract_industry(self, soup) -> Optional[str]:
-        for p in soup.find_all("p", class_="sub"):
+        peer_sec = soup.find("section", id="peers")
+        if peer_sec:
+            links = peer_sec.find_all("a", href=lambda h: h and "/market/" in h)
+            link_texts = [a.get_text(strip=True) for a in links]
+            if len(link_texts) >= 2:
+                return link_texts[-1]
+        for p in soup.find_all(["p", "span"]):
             text = p.get_text(strip=True)
             if "Industry" in text:
                 parts = text.split(":")
@@ -214,18 +247,73 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         return None
 
     def _extract_market_cap(self, soup) -> Optional[float]:
-        for li in soup.find_all("li", class_="flex flex-space-between"):
-            spans = li.find_all("span")
-            if len(spans) >= 2 and "Market Cap" in spans[0].get_text():
-                return self._parse_number(spans[1].get_text(strip=True))
+        for li in soup.find_all(["li", "p", "div"]):
+            txt = li.get_text(separator=" ", strip=True)
+            if "Market Cap" in txt:
+                val = self._parse_number(txt.replace("Market Cap", "").strip())
+                if val is not None and val > 0:
+                    return val
         return None
 
     def _extract_shares_outstanding(self, soup) -> Optional[float]:
-        for li in soup.find_all("li", class_="flex flex-space-between"):
-            spans = li.find_all("span")
-            if len(spans) >= 2 and "Shares" in spans[0].get_text():
-                return self._parse_number(spans[1].get_text(strip=True))
+        for li in soup.find_all(["li", "p", "div"]):
+            txt = li.get_text(separator=" ", strip=True)
+            if "Shares" in txt and "Outstanding" in txt:
+                val = self._parse_number(txt.replace("Shares", "").replace("Outstanding", "").strip())
+                if val is not None and val > 0:
+                    return val
         return None
+
+    def _extract_shareholding(self, soup) -> Dict[str, Any]:
+        tables = soup.find_all("table")
+        sh_dict = {}
+        for table in tables:
+            txt = table.get_text()
+            if "Promoter" in txt or "FII" in txt or "DII" in txt or "Shareholding" in txt:
+                try:
+                    from io import StringIO
+                    dfs = pd.read_html(StringIO(str(table)))
+                    if dfs and not dfs[0].empty:
+                        df = dfs[0]
+                        row_map = {}
+                        for _, row in df.iterrows():
+                            label_raw = str(row.iloc[0])
+                            label_clean = re.sub(r'[^a-zA-Z]', '', label_raw).lower()
+                            latest_val = None
+                            for val_col in reversed(row.iloc[1:]):
+                                v_str = re.sub(r'[^0-9.]', '', str(val_col))
+                                if v_str:
+                                    try:
+                                        latest_val = float(v_str)
+                                        break
+                                    except Exception:
+                                        pass
+                            if label_clean and latest_val is not None:
+                                row_map[label_clean] = latest_val
+
+                        prom = row_map.get("promoter") or row_map.get("promoters") or row_map.get("promoterpromotergroup")
+                        fii = row_map.get("fii") or row_map.get("fiis") or row_map.get("fpi") or row_map.get("fpis")
+                        dii = row_map.get("dii") or row_map.get("diis") or row_map.get("domesticinstitutionalinvestors")
+                        govt = row_map.get("govt") or row_map.get("government")
+                        pub = row_map.get("public") or row_map.get("retail")
+                        sh_count = row_map.get("noofshareholders") or row_map.get("shareholders")
+
+                        if prom is not None or fii is not None or dii is not None:
+                            inst = round((fii or 0.0) + (dii or 0.0), 2)
+                            return {
+                                "Promoter_Pct": prom,
+                                "FII_Pct": fii,
+                                "DII_Pct": dii,
+                                "Govt_Pct": govt,
+                                "Public_Pct": pub,
+                                "Institutional_Pct": inst,
+                                "Shareholders_Count": sh_count,
+                                "Shareholding_Period": str(df.columns[-1]) if len(df.columns) > 1 else None,
+                                "Shareholding_Table": df,
+                            }
+                except Exception:
+                    continue
+        return sh_dict
 
     @staticmethod
     def _parse_number(text: str) -> Optional[float]:
@@ -892,6 +980,14 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "Altman": _make_detail("Altman", altman.get("score") if isinstance(altman, dict) else None, target_rec),
         }
 
+        slug = self._ticker_to_slug(symbol)
+        html = self._get(f"{self.BASE_URL}/company/{slug}/consolidated/") or self._get(f"{self.BASE_URL}/company/{slug}/")
+        sh_info = {}
+        if html:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html, "html.parser")
+            sh_info = self._extract_shareholding(soup)
+
         result = {
             "Symbol": symbol,
             "Company": info.get("company_name"),
@@ -928,8 +1024,18 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "BookValue": None,
             "SharesOutstanding": info.get("sharesOutstanding"),
             "FloatShares": None,
-            "InstitutionsPercentHeld": None,
-            "InsidersPercentHeld": None,
+            "InstitutionsPercentHeld": sh_info.get("Institutional_Pct"),
+            "InsidersPercentHeld": sh_info.get("Promoter_Pct"),
+            "Promoter_Pct": sh_info.get("Promoter_Pct"),
+            "FII_Pct": sh_info.get("FII_Pct"),
+            "DII_Pct": sh_info.get("DII_Pct"),
+            "Govt_Pct": sh_info.get("Govt_Pct"),
+            "Public_Pct": sh_info.get("Public_Pct"),
+            "Institutional_Pct": sh_info.get("Institutional_Pct"),
+            "Shareholders_Count": sh_info.get("Shareholders_Count"),
+            "Shareholding_Period": sh_info.get("Shareholding_Period"),
+            "Shareholding_Table": sh_info.get("Shareholding_Table"),
+            "Shareholding_History": sh_info.get("Shareholding_History"),
             "SharesShort": None,
             "SharesShortPriorMonth": None,
             "TotalCash": None,
@@ -1058,27 +1164,11 @@ class ReportParser:
 
     @classmethod
     def derive_financial_year(cls, period_str: str, quarter: Optional[int] = None) -> Optional[int]:
-        s = cls.normalize_period(period_str)
-        if s is None:
-            return None
-        try:
-            dt = pd.to_datetime(s)
-            if quarter is not None and quarter <= 3:
-                return dt.year + 1
-            return dt.year
-        except Exception:
-            return None
+        return _ReportHelpers.derive_financial_year(period_str, quarter)
 
     @classmethod
     def derive_quarter(cls, period_str: str) -> Optional[int]:
-        s = cls.normalize_period(period_str)
-        if s is None:
-            return None
-        try:
-            dt = pd.to_datetime(s)
-            return (dt.month - 1) // 3 + 1
-        except Exception:
-            return None
+        return _ReportHelpers.derive_quarter(period_str)
 
 
 class _ReportHelpers:
@@ -1093,7 +1183,8 @@ class _ReportHelpers:
             return None
         try:
             dt = pd.to_datetime(s)
-            return dt.strftime("%Y-%m-%d")
+            end_dt = dt + pd.offsets.MonthEnd(0)
+            return end_dt.strftime("%Y-%m-%d")
         except Exception:
             return s
 
@@ -1104,19 +1195,20 @@ class _ReportHelpers:
             return None
         try:
             dt = pd.to_datetime(s)
-            return (dt.month - 1) // 3 + 1
+            month = dt.month
+            if 4 <= month <= 6:
+                return 1
+            elif 7 <= month <= 9:
+                return 2
+            elif 10 <= month <= 12:
+                return 3
+            else:
+                return 4
         except Exception:
             return None
 
     @staticmethod
     def derive_financial_year(period_str: str, quarter: Optional[int] = None) -> Optional[int]:
-        """Derive Indian FY from a period string and optional quarter.
-
-        Indian FY runs April-March.  For a quarter period_str (e.g. "Mar 2023"):
-          - Q1 (Jan-Mar) belongs to the FY that ENDS in that calendar year
-          - Q2-Q4 belong to the FY that STARTED in that calendar year
-        For an annual period_str (e.g. "FY23" or "2023"), returns the FY directly.
-        """
         s = str(period_str).strip() if period_str else ""
         if not s:
             return None
@@ -1130,9 +1222,11 @@ class _ReportHelpers:
 
         try:
             dt = pd.to_datetime(s)
-            if quarter is not None and quarter <= 3:
+            month = dt.month
+            if month >= 4:
                 return dt.year + 1
-            return dt.year
+            else:
+                return dt.year
         except Exception:
             return None
 

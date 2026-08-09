@@ -13,15 +13,15 @@ def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 class YahooFinanceProvider(BaseFundamentalProvider):
-    """Provider that wraps yfinance but returns structured results and metadata.
-
-    This keeps a clear boundary so providers can be swapped later.
-    NOTE: Use YahooPriceProvider for OHLCV-only data.
+    """DISABLED FOR PRODUCTION FUNDAMENTALS.
+    
+    Per Production Real Data Policy:
+    Yahoo Finance MUST NOT be used for fundamental data, financial statements, or ownership ratios.
+    Use NSEXBRLProvider or OfficialReportsProvider instead.
     """
 
     def get_company_info(self, symbol: str) -> Dict[str, Any]:
-        t = yf.Ticker(symbol)
-        return t.info or {}
+        return {}
 
     def get_quarterly_financials(self, symbol: str) -> Optional[pd.DataFrame]:
         t = yf.Ticker(symbol)

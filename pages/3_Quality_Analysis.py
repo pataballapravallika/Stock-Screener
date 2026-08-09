@@ -265,9 +265,24 @@ if quarterly_growth:
 else:
     st.info("Quarterly fundamentals unavailable from official filings.")
 
-st.divider()
 st.subheader("Shareholding Pattern")
-st.info("Shareholding data unavailable from current provider.")
+sh_tbl = fund.get("Shareholding_Table")
+p_pct = fund.get("Promoter_Pct")
+f_pct = fund.get("FII_Pct")
+d_pct = fund.get("DII_Pct")
+pub_pct = fund.get("Public_Pct")
+
+if p_pct is not None or f_pct is not None or d_pct is not None:
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Promoters", f"{p_pct:.2f}%" if p_pct is not None else "N/A")
+    c2.metric("FIIs", f"{f_pct:.2f}%" if f_pct is not None else "N/A")
+    c3.metric("DIIs", f"{d_pct:.2f}%" if d_pct is not None else "N/A")
+    c4.metric("Public & Others", f"{pub_pct:.2f}%" if pub_pct is not None else "N/A")
+
+if sh_tbl is not None and isinstance(sh_tbl, pd.DataFrame) and not sh_tbl.empty:
+    st.dataframe(sh_tbl, use_container_width=True)
+elif p_pct is None:
+    st.info("Shareholding data unavailable from current provider.")
 q_roe = fund.get("quarterly_roe") or {}
 q_roa = fund.get("quarterly_roa") or {}
 q_de = fund.get("quarterly_debt_equity") or {}

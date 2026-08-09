@@ -28,6 +28,7 @@ import pandas as pd
 import requests
 
 from data.providers.base_provider import BaseFundamentalProvider, ReportIngestionMixin
+from data.providers.official_reports_provider import _ReportHelpers
 from data.parsers.xbrl_parser import XBRLParser
 from data.calculations.financial_calculator import FinancialCalculator
 from data.database import (
@@ -109,22 +110,9 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         except Exception:
             return None
 
-    DEFAULT_SECTORS = {
-        "RELIANCE.NS": ("Energy", "Refineries/Petrochem"),
-        "TCS.NS": ("Technology", "IT - Software"),
-        "INFY.NS": ("Technology", "IT - Software"),
-        "HDFCBANK.NS": ("Financial Services", "Private Sector Bank"),
-        "ICICIBANK.NS": ("Financial Services", "Private Sector Bank"),
-        "SBIN.NS": ("Financial Services", "Public Sector Bank"),
-        "TATAMOTORS.NS": ("Automotive", "Automobiles"),
-        "ITC.NS": ("Consumer Goods", "FMCG"),
-        "WIPRO.NS": ("Technology", "IT - Software"),
-        "HCLTECH.NS": ("Technology", "IT - Software"),
-    }
-
     def get_company_info(self, symbol: str) -> Dict[str, Any]:
         cached = get_company_info(symbol)
-        if cached and cached.get("company_name") and cached.get("sector"):
+        if cached and cached.get("company_name") and cached.get("sector") and cached.get("sector") != "Unknown":
             return {
                 "ticker": symbol,
                 "company_name": cached.get("company_name"),
@@ -137,11 +125,9 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         clean = self._ticker_to_slug(symbol)
         data = self._nse_get(f"/api/quote-equity?symbol={clean}")
 
-        def_sec, def_ind = self.DEFAULT_SECTORS.get(symbol, ("Technology", "IT Services"))
-
         company_name = clean
-        sector = def_sec
-        industry = def_ind
+        sector = None
+        industry = None
         mcap = None
         shares = None
 
@@ -152,8 +138,8 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             sec_details = data.get("secInfo", {})
 
             company_name = info_rec.get("companyName") or clean
-            sector = sec_info.get("macro") or sec_info.get("sector") or def_sec
-            industry = sec_info.get("industry") or sec_info.get("basicIndustry") or def_ind
+            sector = sec_info.get("macro") or sec_info.get("sector")
+            industry = sec_info.get("industry") or sec_info.get("basicIndustry")
 
             if "marketCap" in sec_details:
                 mcap = self._to_float(sec_details.get("marketCap"))
@@ -161,6 +147,27 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 mcap = self._to_float(price_info.get("totalMarketCap"))
 
             shares = self._to_float(sec_details.get("issuedCap"))
+
+        # Fallback for sector, industry, marketCap if missing from NSE quote endpoint
+        if not sector or not industry or not mcap:
+            try:
+                from data.providers.official_reports_provider import OfficialReportsProvider
+                off_info = OfficialReportsProvider().get_company_info(symbol)
+                if off_info:
+                    company_name = company_name or off_info.get("company_name")
+                    sector = sector or off_info.get("sector")
+                    industry = industry or off_info.get("industry")
+                    mcap = mcap or off_info.get("market_cap")
+                    shares = shares or off_info.get("sharesOutstanding")
+            except Exception:
+                pass
+
+        if not sector or sector == "Unknown":
+            from data.sector_data import get_standard_sector
+            sector = get_standard_sector(symbol)
+
+        sector = sector or "N/A"
+        industry = industry or "N/A"
 
         result = {
             "ticker": symbol,
@@ -403,12 +410,11 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         ocf = self._to_crores(_get_attr("cf_operating_cash_flow"))
 
         date_str = _get_attr("period_end") or _get_attr("dt") or ""
-        parsed_dt = self._parse_date(date_str)
-        report_date = parsed_dt.strftime("%Y-%m-%d") if parsed_dt else datetime.now().strftime("%Y-%m-%d")
+        report_date = _ReportHelpers.normalize_period(date_str) or datetime.now().strftime("%Y-%m-%d")
 
         period = _get_attr("period") or "quarterly"
-        quarter = parsed_dt.month // 3 if parsed_dt else 1
-        fy = parsed_dt.year if parsed_dt else datetime.now().year
+        quarter = _ReportHelpers.derive_quarter(report_date)
+        fy = _ReportHelpers.derive_financial_year(report_date, quarter)
 
         save_fundamental_report(
             ticker=symbol,
@@ -578,8 +584,32 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         ebit = latest_q.get("ebit") or latest_a.get("ebit")
 
         mcap = info.get("market_cap")
+        if not mcap:
+            try:
+                from data.providers.official_reports_provider import OfficialReportsProvider
+                off_info = OfficialReportsProvider().get_company_info(symbol)
+                mcap = off_info.get("market_cap")
+            except Exception:
+                pass
+
+        if mcap:
+            info["market_cap"] = mcap
+            latest_q["market_cap"] = mcap
+            latest_a["market_cap"] = mcap
+            ratios = self.calculator.compute_all_ratios(latest_q, latest_a, ttm_rec or {})
+
         eps_g = q_growth.get("eps_qoq") or a_growth.get("eps_yoy")
         peg = self.calculator.compute_peg(ratios.get("pe"), eps_g)
+
+        # Retrieve shareholding from official disclosures only
+        sh_info = {}
+        try:
+            from data.providers.official_reports_provider import OfficialReportsProvider
+            off_dict = OfficialReportsProvider().build_fundamentals_dict(symbol)
+            if off_dict:
+                sh_info = off_dict
+        except Exception:
+            pass
 
         result = {
             "Symbol": symbol,
@@ -608,6 +638,18 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "PAT_YoY": q_growth.get("pat_yoy"),
             "EPS_QoQ": q_growth.get("eps_qoq"),
             "EPS_YoY": q_growth.get("eps_yoy"),
+            "Promoter_Pct": sh_info.get("Promoter_Pct"),
+            "FII_Pct": sh_info.get("FII_Pct"),
+            "DII_Pct": sh_info.get("DII_Pct"),
+            "Govt_Pct": sh_info.get("Govt_Pct"),
+            "Public_Pct": sh_info.get("Public_Pct"),
+            "Institutional_Pct": sh_info.get("Institutional_Pct"),
+            "Shareholders_Count": sh_info.get("Shareholders_Count"),
+            "Shareholding_Period": sh_info.get("Shareholding_Period"),
+            "Shareholding_Table": sh_info.get("Shareholding_Table"),
+            "Shareholding_History": sh_info.get("Shareholding_History"),
+            "InsidersPercentHeld": sh_info.get("Promoter_Pct"),
+            "InstitutionsPercentHeld": sh_info.get("Institutional_Pct"),
             "fundamentals_source": "nse_xbrl",
         }
 

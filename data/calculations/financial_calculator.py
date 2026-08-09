@@ -45,14 +45,22 @@ class FinancialCalculator:
         return cls._div(cls._safe(net_income), cls._safe(total_assets))
 
     @classmethod
-    def compute_roce(cls, ebit, total_assets, current_liabilities) -> Optional[float]:
+    def compute_roce(cls, ebit, total_assets, current_liabilities, equity=None, debt=None) -> Optional[float]:
         e = cls._safe(ebit)
         ta = cls._safe(total_assets)
         cl = cls._safe(current_liabilities)
-        if e is None or ta is None or cl is None:
+        eq = cls._safe(equity)
+        d = cls._safe(debt)
+        if e is None:
             return None
-        capital_employed = ta - cl
-        if capital_employed == 0:
+        capital_employed = None
+        if ta is not None and cl is not None and ta > cl:
+            capital_employed = ta - cl
+        elif eq is not None and eq > 0:
+            capital_employed = eq + (d or 0.0)
+        elif ta is not None and ta > 0:
+            capital_employed = ta
+        if capital_employed is None or capital_employed <= 0:
             return None
         return e / capital_employed
 
@@ -145,7 +153,7 @@ class FinancialCalculator:
         ratios = {
             "roe": cls.compute_roe(ni, eq),
             "roa": cls.compute_roa(ni, ta),
-            "roce": cls.compute_roce(ebit, ta, cl),
+            "roce": cls.compute_roce(ebit, ta, cl, equity=eq, debt=debt),
             "debt_equity": cls.compute_debt_equity(debt, eq),
             "opm": cls.compute_opm(op, rev),
             "npm": cls.compute_npm(ni, rev),
@@ -158,8 +166,16 @@ class FinancialCalculator:
         if ca is not None and cl is not None:
             ratios["working_capital"] = cls.compute_working_capital(ca, cl)
 
-        if market_cap and ni and ni > 0:
-            pe = cls._safe(market_cap) / (ni * 4.0 if ni < 50000 else ni)
+        ttm_pat = cls._safe(ttm_record.get("pat")) if ttm_record else None
+        annual_pat = cls._safe(annual_record.get("pat")) if annual_record else None
+        quarterly_pat = cls._safe(record.get("pat")) if record else None
+        
+        eval_pat = ttm_pat or annual_pat
+        if not eval_pat and quarterly_pat:
+            eval_pat = quarterly_pat * 4.0
+
+        if market_cap and eval_pat and eval_pat > 0:
+            pe = cls._safe(market_cap) / eval_pat
             if pe and pe > 0:
                 ratios["pe"] = round(pe, 2)
 
@@ -226,24 +242,60 @@ class FinancialCalculator:
 
     @classmethod
     def compute_ttm(cls, reports: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        if not reports or len(reports) < 4:
+        if not reports:
             return None
 
-        sorted_reports = sorted(
-            reports,
-            key=lambda r: str(r.get("report_date") or ""),
-            reverse=True
-        )
-        latest_4 = sorted_reports[:4]
+        # Deduplicate reports by quarter period key (YYYY-MM)
+        seen_periods = set()
+        dedup_reports = []
+        for r in sorted(reports, key=lambda x: str(x.get("report_date") or ""), reverse=True):
+            r_date = str(r.get("report_date") or "").strip()
+            if not r_date:
+                continue
+            try:
+                dt = pd.to_datetime(r_date)
+                period_key = f"{dt.year}-{dt.month:02d}"
+            except Exception:
+                period_key = r_date
+
+            if period_key not in seen_periods:
+                seen_periods.add(period_key)
+                dedup_reports.append(r)
+
+        if len(dedup_reports) < 4:
+            latest_4 = dedup_reports
+        else:
+            latest_4 = dedup_reports[:4]
+
+        if not latest_4:
+            return None
+
+        eps_vals = [cls._safe(r.get("eps")) for r in latest_4 if cls._safe(r.get("eps")) is not None]
+        ttm_eps = sum(eps_vals) if eps_vals else None
 
         ttm = {
             "revenue": sum(cls._safe(r.get("revenue")) for r in latest_4 if cls._safe(r.get("revenue")) is not None),
             "operating_profit": sum(cls._safe(r.get("operating_profit")) for r in latest_4 if cls._safe(r.get("operating_profit")) is not None),
             "ebit": sum(cls._safe(r.get("ebit")) for r in latest_4 if cls._safe(r.get("ebit")) is not None),
             "pat": sum(cls._safe(r.get("pat")) for r in latest_4 if cls._safe(r.get("pat")) is not None),
+            "eps": ttm_eps,
             "operating_cash_flow": sum(cls._safe(r.get("operating_cash_flow")) for r in latest_4 if cls._safe(r.get("operating_cash_flow")) is not None),
             "capex": sum(cls._safe(r.get("capex")) for r in latest_4 if cls._safe(r.get("capex")) is not None),
             "gross_profit": sum(cls._safe(r.get("gross_profit")) for r in latest_4 if cls._safe(r.get("gross_profit")) is not None),
+            "quarter_count": len(latest_4),
+            "quarter_sources": [
+                {
+                    "report_date": r.get("report_date"),
+                    "quarter": r.get("quarter"),
+                    "financial_year": r.get("financial_year"),
+                    "quarter_label": f"Q{r.get('quarter')} FY{r.get('financial_year')}" if r.get('quarter') and r.get('financial_year') else r.get('report_date'),
+                    "eps": r.get("eps"),
+                    "pat": r.get("pat"),
+                    "revenue": r.get("revenue"),
+                    "source": r.get("source"),
+                }
+                for r in latest_4
+            ]
         }
 
         if latest_4:

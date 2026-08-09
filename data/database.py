@@ -16,6 +16,15 @@ def init_db():
                 industry TEXT,
                 market_cap REAL,
                 shares_outstanding REAL,
+                promoter_pct REAL,
+                fii_pct REAL,
+                dii_pct REAL,
+                govt_pct REAL,
+                public_pct REAL,
+                institutional_pct REAL,
+                shareholders_count REAL,
+                shareholding_json TEXT,
+                shareholding_period TEXT,
                 last_updated TEXT
             )
         """)
@@ -95,6 +104,17 @@ def init_db():
             )
         """)
 
+        # Add missing columns to existing tables
+        company_cols = [
+            ("promoter_pct", "REAL"), ("fii_pct", "REAL"), ("dii_pct", "REAL"),
+            ("govt_pct", "REAL"), ("public_pct", "REAL"), ("institutional_pct", "REAL"),
+            ("shareholders_count", "REAL"), ("shareholding_json", "TEXT"), ("shareholding_period", "TEXT")
+        ]
+        existing_comp_cols = {r[1] for r in conn.execute("PRAGMA table_info(companies)").fetchall()}
+        for col_name, col_type in company_cols:
+            if col_name not in existing_comp_cols:
+                conn.execute(f"ALTER TABLE companies ADD COLUMN {col_name} {col_type}")
+
         for table, cols in [
             ("fundamental_reports", ["current_assets", "working_capital", "gross_profit", "cogs", "retained_earnings"]),
             ("fundamental_ttm", ["current_assets", "working_capital", "gross_profit", "retained_earnings"]),
@@ -150,18 +170,39 @@ def save_company_info(info: dict = None, **kwargs):
         info = kwargs
     elif kwargs:
         info = {**info, **kwargs}
+    ticker = info.get("ticker") or info.get("symbol")
+    if not ticker:
+        return
+
+    existing = get_company_info(ticker)
+    company_name = info.get("company_name") or info.get("company") or existing.get("company_name")
+    sector = info.get("sector") or existing.get("sector")
+    industry = info.get("industry") or existing.get("industry")
+    market_cap = info.get("market_cap") if info.get("market_cap") is not None else existing.get("market_cap")
+    shares_outstanding = info.get("shares_outstanding") or info.get("sharesOutstanding") if (info.get("shares_outstanding") or info.get("sharesOutstanding")) is not None else existing.get("shares_outstanding")
+
+    promoter_pct = info.get("promoter_pct") if info.get("promoter_pct") is not None else info.get("Promoter_Pct") if info.get("Promoter_Pct") is not None else existing.get("promoter_pct")
+    fii_pct = info.get("fii_pct") if info.get("fii_pct") is not None else info.get("FII_Pct") if info.get("FII_Pct") is not None else existing.get("fii_pct")
+    dii_pct = info.get("dii_pct") if info.get("dii_pct") is not None else info.get("DII_Pct") if info.get("DII_Pct") is not None else existing.get("dii_pct")
+    govt_pct = info.get("govt_pct") if info.get("govt_pct") is not None else info.get("Govt_Pct") if info.get("Govt_Pct") is not None else existing.get("govt_pct")
+    public_pct = info.get("public_pct") if info.get("public_pct") is not None else info.get("Public_Pct") if info.get("Public_Pct") is not None else existing.get("public_pct")
+    institutional_pct = info.get("institutional_pct") if info.get("institutional_pct") is not None else info.get("Institutional_Pct") if info.get("Institutional_Pct") is not None else existing.get("institutional_pct")
+    shareholders_count = info.get("shareholders_count") if info.get("shareholders_count") is not None else info.get("Shareholders_Count") if info.get("Shareholders_Count") is not None else existing.get("shareholders_count")
+    shareholding_json = info.get("shareholding_json") or existing.get("shareholding_json")
+    shareholding_period = info.get("shareholding_period") or info.get("Shareholding_Period") or existing.get("shareholding_period")
+
     with sqlite3.connect(DB) as conn:
         conn.execute("""
-            INSERT OR REPLACE INTO companies (ticker, company_name, sector, industry, market_cap, shares_outstanding, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO companies (
+                ticker, company_name, sector, industry, market_cap, shares_outstanding,
+                promoter_pct, fii_pct, dii_pct, govt_pct, public_pct, institutional_pct,
+                shareholders_count, shareholding_json, shareholding_period, last_updated
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            info.get("ticker") or info.get("symbol"),
-            info.get("company_name") or info.get("company"),
-            info.get("sector"),
-            info.get("industry"),
-            info.get("market_cap"),
-            info.get("shares_outstanding") or info.get("sharesOutstanding"),
-            datetime.utcnow().isoformat(),
+            ticker, company_name, sector, industry, market_cap, shares_outstanding,
+            promoter_pct, fii_pct, dii_pct, govt_pct, public_pct, institutional_pct,
+            shareholders_count, shareholding_json, shareholding_period, datetime.utcnow().isoformat(),
         ))
         conn.commit()
 
@@ -239,11 +280,114 @@ def get_fundamental_reports(ticker: str, period: str = None) -> pd.DataFrame:
 def get_latest_quarterly_reports(ticker: str, n: int = 5, limit: int = None) -> pd.DataFrame:
     count = limit if limit is not None else n
     with sqlite3.connect(DB) as conn:
-        return pd.read_sql_query(
-            "SELECT * FROM fundamental_reports WHERE ticker=? AND period='quarterly' ORDER BY financial_year DESC, quarter DESC LIMIT ?",
+        df = pd.read_sql_query(
+            "SELECT * FROM fundamental_reports WHERE ticker=? AND period='quarterly' ORDER BY report_date DESC, financial_year DESC, quarter DESC",
             conn,
-            params=(ticker, count)
+            params=(ticker,)
         )
+    if df.empty:
+        return df
+
+    seen_periods = set()
+    dedup_rows = []
+    for _, row in df.iterrows():
+        r_date = str(row.get("report_date") or "").strip()
+        if not r_date:
+            continue
+        try:
+            dt = pd.to_datetime(r_date)
+            end_dt = dt + pd.offsets.MonthEnd(0)
+            norm_date = end_dt.strftime("%Y-%m-%d")
+            period_key = f"{dt.year}-{dt.month:02d}"
+        except Exception:
+            norm_date = r_date
+            period_key = r_date
+
+        if period_key not in seen_periods:
+            seen_periods.add(period_key)
+            row_dict = row.to_dict()
+            row_dict["report_date"] = norm_date
+            dedup_rows.append(row_dict)
+            if len(dedup_rows) == count:
+                break
+
+    return pd.DataFrame(dedup_rows)
+
+
+def repair_and_deduplicate_db():
+    """Repair and deduplicate all fundamental_reports in database."""
+    with sqlite3.connect(DB) as conn:
+        df = pd.read_sql_query("SELECT * FROM fundamental_reports", conn)
+    if df.empty:
+        return
+
+    records_by_key = {}
+    for _, row in df.iterrows():
+        r_dict = row.to_dict()
+        ticker = r_dict.get("ticker")
+        period = r_dict.get("period")
+        r_date = str(r_dict.get("report_date") or "").strip()
+        if not ticker or not r_date:
+            continue
+
+        try:
+            dt = pd.to_datetime(r_date)
+            end_dt = dt + pd.offsets.MonthEnd(0)
+            norm_date = end_dt.strftime("%Y-%m-%d")
+        except Exception:
+            norm_date = r_date
+
+        month = pd.to_datetime(norm_date).month if norm_date else 1
+        if period == "quarterly":
+            if 4 <= month <= 6:
+                q = 1
+            elif 7 <= month <= 9:
+                q = 2
+            elif 10 <= month <= 12:
+                q = 3
+            else:
+                q = 4
+            fy = (pd.to_datetime(norm_date).year + 1) if month >= 4 else pd.to_datetime(norm_date).year
+        else:
+            q = None
+            fy = r_dict.get("financial_year") or (pd.to_datetime(norm_date).year if month < 4 else pd.to_datetime(norm_date).year + 1)
+
+        r_dict["report_date"] = norm_date
+        r_dict["quarter"] = q
+        r_dict["financial_year"] = fy
+
+        key = (ticker, norm_date, period)
+        if key not in records_by_key:
+            records_by_key[key] = r_dict
+        else:
+            existing = records_by_key[key]
+            existing_non_nulls = sum(1 for v in existing.values() if pd.notna(v))
+            new_non_nulls = sum(1 for v in r_dict.values() if pd.notna(v))
+            if new_non_nulls > existing_non_nulls or r_dict.get("source") == "nse_xbrl":
+                records_by_key[key] = r_dict
+
+    with sqlite3.connect(DB) as conn:
+        conn.execute("DELETE FROM fundamental_reports")
+        conn.commit()
+
+    for r in records_by_key.values():
+        r.pop("id", None)
+        save_fundamental_report(r)
+
+    with sqlite3.connect(DB) as conn:
+        tickers = [row[0] for row in conn.execute("SELECT DISTINCT ticker FROM fundamental_reports").fetchall()]
+
+    from data.calculations.financial_calculator import FinancialCalculator
+    calc = FinancialCalculator()
+    for t in tickers:
+        q_df = get_latest_quarterly_reports(t, limit=4)
+        if not q_df.empty and len(q_df) >= 4:
+            reports = q_df.to_dict("records")
+            ttm = calc.compute_ttm(reports)
+            if ttm:
+                ttm["ticker"] = t
+                ttm["period"] = "ttm"
+                save_ttm_record(ttm)
 
 
 def get_latest_annual_reports(ticker: str, n: int = 5, limit: int = None) -> pd.DataFrame:
