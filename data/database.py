@@ -54,6 +54,21 @@ def init_db():
                 gross_profit REAL,
                 cogs REAL,
                 retained_earnings REAL,
+                interest_income REAL,
+                interest_expense REAL,
+                total_income REAL,
+                non_interest_income REAL,
+                gross_npa REAL,
+                net_npa REAL,
+                total_advances REAL,
+                provisions REAL,
+                total_deposits REAL,
+                car REAL,
+                cash_and_cash_equivalents REAL,
+                total_debt REAL,
+                depreciation_amortization REAL,
+                share_capital REAL,
+                face_value REAL,
                 source TEXT,
                 source_url TEXT,
                 source_type TEXT,
@@ -86,6 +101,12 @@ def init_db():
                 capex REAL,
                 gross_profit REAL,
                 retained_earnings REAL,
+                cash_and_cash_equivalents REAL,
+                total_debt REAL,
+                depreciation_amortization REAL,
+                share_capital REAL,
+                face_value REAL,
+                shares_outstanding REAL,
                 source TEXT,
                 source_url TEXT,
                 source_type TEXT,
@@ -123,6 +144,41 @@ def init_db():
             for col in cols:
                 if col not in existing:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} REAL")
+
+        banking_cols = [
+            ("interest_income", "REAL"), ("interest_expense", "REAL"),
+            ("total_income", "REAL"), ("non_interest_income", "REAL"),
+            ("gross_npa", "REAL"), ("net_npa", "REAL"),
+            ("total_advances", "REAL"), ("provisions", "REAL"),
+            ("total_deposits", "REAL"), ("car", "REAL"),
+        ]
+        for table in ["fundamental_reports", "fundamental_ttm"]:
+            existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            for col_name, col_type in banking_cols:
+                if col_name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
+
+        valuation_cols = [
+            ("cash_and_cash_equivalents", "REAL"),
+            ("total_debt", "REAL"),
+            ("depreciation_amortization", "REAL"),
+            ("share_capital", "REAL"),
+            ("face_value", "REAL"),
+        ]
+        for table in ["fundamental_reports", "fundamental_ttm"]:
+            existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            for col_name, col_type in valuation_cols:
+                if col_name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
+
+        ttm_specific_cols = [
+            ("shares_outstanding", "REAL"),
+        ]
+        for table in ["fundamental_ttm"]:
+            existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            for col_name, col_type in ttm_specific_cols:
+                if col_name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
 
         for table, col_defs in [
             ("fundamental_reports", [("source_url", "TEXT"), ("source_type", "TEXT"), ("consolidated", "INTEGER"), ("unit", "TEXT")]),
@@ -230,9 +286,13 @@ def save_fundamental_report(record: dict = None, **kwargs):
              revenue, operating_profit, ebit, pat, eps,
              equity, assets, liabilities, current_assets, current_liabilities,
              working_capital, debt, operating_cash_flow, capex,
-             gross_profit, cogs, retained_earnings, source,
-             source_url, source_type, consolidated, unit)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             gross_profit, cogs, retained_earnings,
+             interest_income, interest_expense, total_income, non_interest_income,
+             gross_npa, net_npa, total_advances, provisions, total_deposits, car,
+             cash_and_cash_equivalents, total_debt, depreciation_amortization,
+             share_capital, face_value,
+             source, source_url, source_type, consolidated, unit)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.get("ticker") or record.get("symbol"),
             record.get("company"),
@@ -257,6 +317,21 @@ def save_fundamental_report(record: dict = None, **kwargs):
             record.get("gross_profit"),
             record.get("cogs"),
             record.get("retained_earnings"),
+            record.get("interest_income"),
+            record.get("interest_expense"),
+            record.get("total_income"),
+            record.get("non_interest_income"),
+            record.get("gross_npa"),
+            record.get("net_npa"),
+            record.get("total_advances"),
+            record.get("provisions"),
+            record.get("total_deposits"),
+            record.get("car"),
+            record.get("cash_and_cash_equivalents"),
+            record.get("total_debt"),
+            record.get("depreciation_amortization"),
+            record.get("share_capital"),
+            record.get("face_value"),
             record.get("source"),
             record.get("source_url"),
             record.get("source_type"),
@@ -417,8 +492,12 @@ def save_ttm_record(record: dict = None, symbol: str = None, ttm_dict: dict = No
              equity, assets, liabilities, current_assets, current_liabilities,
              working_capital, debt, operating_cash_flow, capex,
              gross_profit, retained_earnings,
+             interest_income, interest_expense, total_income, non_interest_income,
+             gross_npa, net_npa, total_advances, provisions, total_deposits, car,
+             cash_and_cash_equivalents, total_debt, depreciation_amortization,
+             share_capital, face_value, shares_outstanding,
              source, source_url, source_type, consolidated, unit)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.get("ticker") or record.get("symbol"),
             record.get("company"),
@@ -440,6 +519,22 @@ def save_ttm_record(record: dict = None, symbol: str = None, ttm_dict: dict = No
             record.get("capex"),
             record.get("gross_profit"),
             record.get("retained_earnings"),
+            record.get("interest_income"),
+            record.get("interest_expense"),
+            record.get("total_income"),
+            record.get("non_interest_income"),
+            record.get("gross_npa"),
+            record.get("net_npa"),
+            record.get("total_advances"),
+            record.get("provisions"),
+            record.get("total_deposits"),
+            record.get("car"),
+            record.get("cash_and_cash_equivalents"),
+            record.get("total_debt"),
+            record.get("depreciation_amortization"),
+            record.get("share_capital"),
+            record.get("face_value"),
+            record.get("shares_outstanding"),
             record.get("source"),
             record.get("source_url"),
             record.get("source_type"),

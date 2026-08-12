@@ -1,10 +1,12 @@
 from typing import Dict, Any, Optional
 from data.providers.nse_xbrl_provider import NSEXBRLProvider
 from data.providers.official_reports_provider import OfficialReportsProvider
+from data.providers.yahoo_price_provider import YahooPriceProvider
 
 
 _provider = NSEXBRLProvider()
 _fallback_provider = OfficialReportsProvider()
+_price_provider = YahooPriceProvider()
 
 
 def _enrich_missing_fundamentals(symbol: str, result: Dict[str, Any]) -> Dict[str, Any]:
@@ -14,50 +16,44 @@ def _enrich_missing_fundamentals(symbol: str, result: Dict[str, Any]) -> Dict[st
     needs_enrichment = (
         not result.get("MarketCap") or
         not result.get("PE") or
-        result.get("Promoter_Pct") is None or
-        result.get("Institutional_Pct") is None
+        not result.get("Company") or
+        not result.get("Sector") or
+        not result.get("Industry") or
+        result.get("Sector") in ("Unknown", "N/A", "25") or
+        result.get("Industry") in ("Unknown", "N/A", "25")
     )
 
     if needs_enrichment:
         try:
-            import yfinance as yf
-            clean_sym = symbol if symbol.endswith(".NS") or symbol.endswith(".BO") else f"{symbol}.NS"
-            info = yf.Ticker(clean_sym).info or {}
+            from data.providers.official_reports_provider import OfficialReportsProvider
+            off_info = OfficialReportsProvider().get_company_info(symbol)
+            if off_info:
+                if not result.get("Company"):
+                    result["Company"] = off_info.get("company_name")
+                if not result.get("Sector") or result.get("Sector") in ("Unknown", "N/A", "25"):
+                    result["Sector"] = off_info.get("sector") or result.get("Sector")
+                if not result.get("Industry") or result.get("Industry") in ("Unknown", "N/A", "25"):
+                    result["Industry"] = off_info.get("industry") or result.get("Industry")
+        except Exception:
+            pass
 
-            if not result.get("MarketCap") and info.get("marketCap"):
-                # Convert to Cr
-                result["MarketCap"] = float(info["marketCap"]) / 1e7
+    if not result.get("MarketCap"):
+        try:
+            from data.database import get_company_info as db_get_company_info
+            cached = db_get_company_info(symbol)
+            if cached and cached.get("market_cap"):
+                result["MarketCap"] = float(cached["market_cap"])
+        except Exception:
+            pass
 
-            if not result.get("PE") and info.get("trailingPE"):
-                result["PE"] = round(float(info["trailingPE"]), 2)
-
-            if not result.get("ROE") and info.get("returnOnEquity"):
-                result["ROE"] = round(float(info["returnOnEquity"]) * 100.0, 2)
-
-            prom = info.get("heldPercentInsiders")
-            if result.get("Promoter_Pct") is None and prom is not None:
-                result["Promoter_Pct"] = round(float(prom) * 100.0, 2)
-                result["InsidersPercentHeld"] = result["Promoter_Pct"]
-
-            inst = info.get("heldPercentInstitutions")
-            if result.get("Institutional_Pct") is None and inst is not None:
-                result["Institutional_Pct"] = round(float(inst) * 100.0, 2)
-                result["InstitutionsPercentHeld"] = result["Institutional_Pct"]
-
-            if result.get("FII_Pct") is None and result.get("Institutional_Pct") is not None:
-                result["FII_Pct"] = round(result["Institutional_Pct"] * 0.6, 2)
-                result["DII_Pct"] = round(result["Institutional_Pct"] * 0.4, 2)
-
-            if not result.get("Company") and info.get("shortName"):
-                result["Company"] = info.get("shortName")
-
-            if (not result.get("Sector") or result.get("Sector") in ("Unknown", "N/A", "25")) and info.get("sector"):
-                result["Sector"] = info.get("sector")
-
-            if (not result.get("Industry") or result.get("Industry") in ("Unknown", "N/A", "25")) and info.get("industry"):
-                result["Industry"] = info.get("industry")
-        except Exception as e:
-            print(f"Enrichment error for {symbol}: {e}")
+    if not result.get("SharesOutstanding"):
+        try:
+            from data.database import get_company_info as db_get_company_info
+            cached = db_get_company_info(symbol)
+            if cached and cached.get("shares_outstanding"):
+                result["SharesOutstanding"] = cached["shares_outstanding"]
+        except Exception:
+            pass
 
     return result
 
@@ -66,12 +62,13 @@ _fundamentals_cache = {}
 
 
 def fetch_fundamentals(symbol: str) -> Dict[str, Any]:
-    """Fetch fundamentals from official sources, enriched with market data.
+    """Fetch fundamentals from official sources only.
 
     Priority order:
       1) NSE XBRL (official company filings) — primary
       2) screener.in (official reports) — fallback
-      3) yfinance info fallback for any missing MarketCap/PE/shareholding fields.
+      YFinance is NOT used for fundamentals, ownership, or ratios.
+      YFinance is used ONLY for current market price data (price, volume).
     """
     clean_sym = symbol.strip().upper()
     if clean_sym in _fundamentals_cache:
@@ -96,3 +93,9 @@ def fetch_fundamentals(symbol: str) -> Dict[str, Any]:
     enriched = _enrich_missing_fundamentals(clean_sym, res)
     _fundamentals_cache[clean_sym] = enriched
     return enriched
+
+
+def clear_fundamentals_cache():
+    """Clear the fundamentals cache so fresh data is fetched on next call."""
+    global _fundamentals_cache
+    _fundamentals_cache = {}

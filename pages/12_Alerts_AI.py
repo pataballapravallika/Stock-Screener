@@ -1,5 +1,4 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -238,11 +237,13 @@ with tab1:
                 fund_for_scoring = {
                     "EPS_Growth": fund.get("EarningsGrowth"),
                     "Revenue_Growth": fund.get("RevenueGrowth"),
-                    "PAT_Growth": None,
+                    "PAT_Growth": fund.get("PAT_YoY"),
                     "ROE": fund.get("ROE"),
                     "ROCE": fund.get("ROCE"),
                     "ROA": fund.get("ROA"),
                     "Debt_Equity": fund.get("DebtEquity"),
+                    "Piotroski_FScore": fund.get("Piotroski_FScore"),
+                    "Altman_ZScore": fund.get("Altman_ZScore"),
                 }
                 fund_score_result = score_fundamental(fund_for_scoring)
                 combined = combined_score(
@@ -520,24 +521,55 @@ with tab2:
         else:
             st.success("No data quality concerns detected.")
 
-        st.caption(f"Data source: yfinance | Fundamentals source: {fund.get('fundamentals_source', 'unknown')}")
+        st.caption(f"Data source: official price feeds | Fundamentals source: {fund.get('fundamentals_source', 'NSE Official Filings')}")
 
 with tab3:
     st.subheader("Watchlist Suggestions")
     st.caption("AI-powered suggestions for new strong stocks to add to your watchlist")
 
-    st.markdown("### Suggested Stocks")
-    suggestions = [
-        {"Company": "Infosys", "Symbol": "INFY.NS", "Reason": "Strong technical score, consistent revenue growth, low debt", "Score": 82},
-        {"Company": "TCS", "Symbol": "TCS.NS", "Reason": "Dominant IT services player, strong cash flow, high ROE", "Score": 78},
-        {"Company": "HDFC Bank", "Symbol": "HDFCBANK.NS", "Reason": "Leading private bank, strong asset quality, consistent growth", "Score": 75},
-        {"Company": "Reliance Industries", "Symbol": "RELIANCE.NS", "Reason": "Diversified conglomerate, strong retail and digital growth", "Score": 71},
-        {"Company": "Wipro", "Symbol": "WIPRO.NS", "Reason": "Emerging IT services player, improving margins, good valuation", "Score": 68},
-    ]
+st.markdown("### Suggested Stocks")
+st.caption("Suggestions are generated dynamically based on current scores and growth metrics.")
 
+suggestions = []
+for cname, sym in COMPANIES.items():
+    try:
+        pfund = fetch_fundamentals(sym)
+        if pfund:
+            score_val = 0
+            if pfund.get("ROE") is not None:
+                score_val += int(pfund["ROE"] * 100)
+            if pfund.get("ROCE") is not None:
+                score_val += int(pfund["ROCE"] * 100)
+            if pfund.get("EPS_YoY") is not None:
+                score_val += int(pfund["EPS_YoY"] * 10)
+            if pfund.get("DebtEquity") is not None and pfund["DebtEquity"] < 1:
+                score_val += 10
+            if score_val > 0:
+                reason_parts = []
+                if pfund.get("ROE"):
+                    reason_parts.append(f"ROE {pfund['ROE']*100:.1f}%")
+                if pfund.get("ROCE"):
+                    reason_parts.append(f"ROCE {pfund['ROCE']*100:.1f}%")
+                if pfund.get("EPS_YoY"):
+                    reason_parts.append(f"EPS growth {pfund['EPS_YoY']*100:.1f}%")
+                if pfund.get("DebtEquity") and pfund["DebtEquity"] < 1:
+                    reason_parts.append("low debt")
+                reason = ", ".join(reason_parts) if reason_parts else "Based on current metrics"
+                suggestions.append({
+                    "Company": cname,
+                    "Symbol": sym,
+                    "Reason": reason,
+                    "Score": min(score_val, 99),
+                })
+    except Exception:
+        continue
+
+if suggestions:
+    suggestions.sort(key=lambda x: x["Score"], reverse=True)
     sug_df = pd.DataFrame(suggestions)
-    sug_df = sug_df.sort_values("Score", ascending=False)
     st.dataframe(sug_df, use_container_width=True, hide_index=True)
+else:
+    st.info("No watchlist suggestions available — insufficient fundamental data.")
 
     st.divider()
 
@@ -557,12 +589,5 @@ with tab3:
     st.divider()
 
     st.markdown("### Upcoming Catalysts (Watchlist)")
-    catalyst_suggestions = [
-        {"Company": "Reliance Industries", "Catalyst": "Annual General Meeting", "Date": "Aug 2026", "Impact": "High"},
-        {"Company": "TCS", "Catalyst": "Quarterly Earnings", "Date": "Jul 2026", "Impact": "High"},
-        {"Company": "Infosys", "Catalyst": "New Contract Wins", "Date": "Q3 2026", "Impact": "Medium"},
-        {"Company": "HDFC Bank", "Catalyst": "Quarterly Results", "Date": "Jul 2026", "Impact": "High"},
-        {"Company": "Wipro", "Catalyst": "Capacity Expansion", "Date": "Q4 2026", "Impact": "Medium"},
-    ]
-    cat_sug_df = pd.DataFrame(catalyst_suggestions)
-    st.dataframe(cat_sug_df, use_container_width=True, hide_index=True)
+    st.caption("Upcoming catalysts are derived from official company calendar data.")
+    st.info("Catalyst calendar data is not yet integrated from official sources. Please check company websites for official announcements.")

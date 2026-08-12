@@ -73,8 +73,19 @@ STOCK_SECTOR_MAP = {
 }
 
 
-def get_standard_sector(symbol: str, raw_sector: str = None) -> str:
-    """Return standardized sector for a given symbol or raw sector string."""
+def get_standard_sector(symbol: str, raw_sector: str = None, raw_industry: str = None) -> str:
+    """Return standardized sector for a given symbol.
+
+    Priority:
+      1) Official sector from NSE filings (raw_sector / raw_industry)
+      2) STOCK_SECTOR_MAP for well-known tickers (classification lookup)
+      3) Heuristic matching on raw_sector string
+    """
+    if raw_sector and raw_sector not in ("N/A", "Unknown", None, "25"):
+        return raw_sector
+    if raw_industry and raw_industry not in ("N/A", "Unknown", None, "25"):
+        return raw_industry
+
     clean_sym = symbol.strip().upper()
     if clean_sym in STOCK_SECTOR_MAP:
         return STOCK_SECTOR_MAP[clean_sym]

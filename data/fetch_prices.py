@@ -21,4 +21,9 @@ def fetch_prices(symbol, period="max"):
     df = df.reset_index()
     df["Symbol"] = symbol
 
+    # Drop rows where Close is NaN (incomplete current-day data)
+    if "Close" in df.columns:
+        df = df.dropna(subset=["Close"])
+        df = df.reset_index(drop=True)
+
     return df

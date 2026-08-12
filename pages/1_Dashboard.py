@@ -62,18 +62,20 @@ df = compute_technical_indicators(df)
 latest = df.iloc[-1]
 tech_result = score_technical(latest)
 
-sector = fund.get("Sector") or "Unknown"
-industry = fund.get("Industry") or "Unknown"
+sector = fund.get("Sector") or "N/A"
+industry = fund.get("Industry") or "N/A"
 is_bank = any(b.lower() in sector.lower() for b in {"Financial Services", "Banking", "Finance", "Insurance"})
 
 fund_for_scoring = {
     "EPS_Growth": fund.get("EarningsGrowth"),
     "Revenue_Growth": fund.get("RevenueGrowth"),
-    "PAT_Growth": None,
+    "PAT_Growth": fund.get("PAT_YoY"),
     "ROE": fund.get("ROE"),
     "ROCE": fund.get("ROCE"),
     "ROA": fund.get("ROA"),
     "Debt_Equity": fund.get("DebtEquity"),
+    "Piotroski_FScore": fund.get("Piotroski_FScore"),
+    "Altman_ZScore": fund.get("Altman_ZScore"),
 }
 
 if is_bank:
@@ -122,10 +124,10 @@ msi = calculate_msi_ratings(symbol, prices=df, fund=fund)
 
 m1, m2, m3, m4, m5 = st.columns(5)
 m1.metric("Master Score", f"{msi['MasterScore']}/99", delta=msi["MasterGrade"])
-m2.metric("EPS Rating", f"{msi['EPSRating']}/99", delta="Growth Rank")
-m3.metric("RS Rating", f"{msi['RSRating']}/99", delta="Price Strength")
+m2.metric("EPS Rating", f"{msi['EPSRating']}/99" if msi.get('EPSRating') is not None else "N/A", delta="Growth Rank")
+m3.metric("RS Rating", f"{msi['RSRating']}/99" if msi.get('RSRating') is not None else     "N/A", delta="Price Strength")
 m4.metric("Buyer Demand", msi["BuyerDemandGrade"], delta=msi["BuyerDemandStatus"])
-m5.metric("Institutional Sponsorship", msi["SponsorshipGrade"], delta=f"{msi['InstitutionalPct']}% Inst.")
+m5.metric("Institutional Sponsorship", msi["SponsorshipGrade"], delta=f"{msi['InstitutionalPct']}% Inst." if msi.get('InstitutionalPct') is not None else "N/A")
 
 st.divider()
 
@@ -338,14 +340,36 @@ with rank_cols[2]:
     st.markdown("**Benchmark Comparison**")
     try:
         bench_df = fetch_prices("^CRSLDX", period="1y")
-        if not bench_df.empty:
-            bench_latest = bench_df.iloc[-1]["Close"]
-            bench_start = bench_df.iloc[0]["Close"]
-            bench_return = (bench_latest - bench_start) / bench_start * 100
-            stock_return = (latest["Close"] / df.iloc[0]["Close"] - 1) * 100
-            st.metric("NIFTY 500 Return (1Y)", f"{bench_return:.2f}%")
-            st.metric("Stock Return (1Y)", f"{stock_return:.2f}%")
-            st.metric("Outperformance", f"{stock_return - bench_return:.2f}%")
+        if not bench_df.empty and len(bench_df) > 1:
+            bench_df_clean = bench_df.dropna(subset=["Close"])
+            if len(bench_df_clean) > 1:
+                bench_latest = float(bench_df_clean.iloc[-1]["Close"])
+                bench_start = float(bench_df_clean.iloc[0]["Close"])
+                if bench_start != 0:
+                    bench_return = (bench_latest - bench_start) / bench_start * 100
+                else:
+                    bench_return = 0.0
+            else:
+                bench_return = 0.0
+
+            stock_df_clean = df.dropna(subset=["Close"])
+            if len(stock_df_clean) > 1:
+                stock_return = (float(stock_df_clean.iloc[-1]["Close"]) / float(stock_df_clean.iloc[0]["Close"]) - 1) * 100
+            else:
+                stock_return = 0.0
+
+            if bench_return and stock_return:
+                st.metric("NIFTY 500 Return (1Y)", f"{bench_return:.2f}%")
+                st.metric("Stock Return (1Y)", f"{stock_return:.2f}%")
+                st.metric("Outperformance", f"{stock_return - bench_return:.2f}%")
+            else:
+                st.metric("NIFTY 500 Return (1Y)", "N/A")
+                st.metric("Stock Return (1Y)", "N/A")
+                st.metric("Outperformance", "N/A")
+        else:
+            st.metric("NIFTY 500 Return (1Y)", "N/A")
+            st.metric("Stock Return (1Y)", "N/A")
+            st.metric("Outperformance", "N/A")
     except Exception:
         st.caption("Benchmark data unavailable")
 

@@ -19,11 +19,13 @@ def calculate_durability_score(fund: Dict[str, Any]) -> Dict[str, Any]:
     - Revenue & Earnings Growth Consistency
     """
     if not fund:
-        return {"score": 45, "grade": "Neutral", "status": "Neutral (Default)"}
+        return {"score": 0, "grade": "N/A", "status": "Insufficient data"}
 
     # 1. ROE (25% weight)
-    roe = fund.get("ROE") or fund.get("quarterly_roe") or 10.0
-    if roe >= 20.0:
+    roe = fund.get("ROE")
+    if roe is None:
+        roe_score = 0
+    elif roe >= 20.0:
         roe_score = 100
     elif roe >= 15.0:
         roe_score = 85
@@ -53,13 +55,11 @@ def calculate_durability_score(fund: Dict[str, Any]) -> Dict[str, Any]:
     piot_dict = fund.get("piotroski_f_score") or {}
     piot_val = piot_dict.get("score") if isinstance(piot_dict, dict) else fund.get("PiotroskiFScore")
     if piot_val is None:
-        try:
-            p_res = compute_piotroski_f_score(fund)
-            piot_val = p_res.get("score", 5) if isinstance(p_res, dict) else 5
-        except Exception:
-            piot_val = 5
+        piot_val = fund.get("Piotroski") or fund.get("Piotroski_FScore")
 
-    if piot_val >= 7:
+    if piot_val is None:
+        piot_score = 0
+    elif piot_val >= 7:
         piot_score = 100
     elif piot_val >= 5:
         piot_score = 70
@@ -69,16 +69,14 @@ def calculate_durability_score(fund: Dict[str, Any]) -> Dict[str, Any]:
         piot_score = 20
 
     # 4. Altman Z-Score (15% weight)
-    alt_dict = fund.get("altman_z_score") or {}
-    alt_val = alt_dict.get("score") if isinstance(alt_dict, dict) else fund.get("AltmanZScore")
-    if alt_val is None:
-        try:
-            a_res = compute_altman_z(fund)
-            alt_val = a_res.get("score", 2.5) if isinstance(a_res, dict) else 2.5
-        except Exception:
-            alt_val = 2.5
+    alt_dict = fund.get("altman_z_score") or fund.get("Altman_ZScore") or {}
+    alt_val = alt_dict.get("value") if isinstance(alt_dict, dict) else fund.get("AltmanZScore")
+    if alt_val is None and isinstance(alt_dict, dict):
+        alt_val = alt_dict.get("score")
 
-    if alt_val >= 3.0:
+    if alt_val is None:
+        alt_score = 0
+    elif alt_val >= 3.0:
         alt_score = 100
     elif alt_val >= 1.8:
         alt_score = 65
@@ -86,9 +84,11 @@ def calculate_durability_score(fund: Dict[str, Any]) -> Dict[str, Any]:
         alt_score = 20
 
     # 5. Earnings & Sales Growth Consistency (15% weight)
-    rev_g = fund.get("RevenueGrowth") or 0.0
-    eps_g = fund.get("EarningsGrowth") or fund.get("EarningsQuarterlyGrowth") or 0.0
-    if rev_g > 15 and eps_g > 15:
+    rev_g = fund.get("RevenueGrowth")
+    eps_g = fund.get("EarningsGrowth") or fund.get("EarningsQuarterlyGrowth")
+    if rev_g is None or eps_g is None or rev_g is None and eps_g is None:
+        growth_score = 0
+    elif rev_g > 15 and eps_g > 15:
         growth_score = 95
     elif rev_g > 0 and eps_g > 0:
         growth_score = 75
@@ -134,12 +134,12 @@ def calculate_valuation_score(fund: Dict[str, Any]) -> Dict[str, Any]:
     - Price to Sales / EV EBITDA
     """
     if not fund:
-        return {"score": 45, "grade": "Neutral", "status": "Neutral (Default)"}
+        return {"score": 0, "grade": "N/A", "status": "Insufficient data"}
 
     # 1. P/E Ratio (35% weight)
     pe = fund.get("PE")
     if pe is None or pe <= 0:
-        pe_score = 45
+        pe_score = 0
     elif pe <= 15:
         pe_score = 95
     elif pe <= 25:
@@ -154,7 +154,7 @@ def calculate_valuation_score(fund: Dict[str, Any]) -> Dict[str, Any]:
     # 2. PEG Ratio (35% weight)
     peg = fund.get("PEG")
     if peg is None or peg <= 0:
-        peg_score = 50
+        peg_score = 0
     elif peg <= 0.8:
         peg_score = 100
     elif peg <= 1.2:
@@ -169,7 +169,7 @@ def calculate_valuation_score(fund: Dict[str, Any]) -> Dict[str, Any]:
     # 3. Price to Book / Gross Margin (30% weight)
     pb = fund.get("PriceToBook") or fund.get("PriceBook")
     if pb is None or pb <= 0:
-        pb_score = 60
+        pb_score = 0
     elif pb <= 2.5:
         pb_score = 90
     elif pb <= 5.0:
@@ -188,9 +188,12 @@ def calculate_valuation_score(fund: Dict[str, Any]) -> Dict[str, Any]:
     elif valuation >= 30:
         grade = "Neutral"
         status = "Fairly Valued"
-    else:
+    elif valuation > 0:
         grade = "Bad"
         status = "Expensive / Overvalued"
+    else:
+        grade = "N/A"
+        status = "Insufficient data"
 
     return {
         "score": valuation,
@@ -214,7 +217,7 @@ def calculate_momentum_score(df_prices: pd.DataFrame) -> Dict[str, Any]:
     - Volume Trend / Up-day vs Down-day pressure
     """
     if df_prices is None or df_prices.empty or len(df_prices) < 20:
-        return {"score": 50, "grade": "Neutral", "status": "Neutral (Default)"}
+        return {"score": 0, "grade": "N/A", "status": "Insufficient data"}
 
     if "RSI" not in df_prices.columns or "MA50" not in df_prices.columns:
         df_prices = compute_technical_indicators(df_prices)
@@ -223,11 +226,10 @@ def calculate_momentum_score(df_prices: pd.DataFrame) -> Dict[str, Any]:
     close = latest.get("Close", 0.0)
 
     # 1. RSI (25% weight)
-    rsi_val = latest.get("RSI", 50.0)
-    if pd.isna(rsi_val):
-        rsi_val = 50.0
-
-    if 55 <= rsi_val <= 70:
+    rsi_val = latest.get("RSI")
+    if rsi_val is None or pd.isna(rsi_val):
+        rsi_score = 0
+    elif 55 <= rsi_val <= 70:
         rsi_score = 95
     elif 45 <= rsi_val < 55:
         rsi_score = 75
@@ -239,19 +241,21 @@ def calculate_momentum_score(df_prices: pd.DataFrame) -> Dict[str, Any]:
         rsi_score = 30
 
     # 2. 52-Week High Proximity (25% weight)
-    high_52 = latest.get("High_52W") or df_prices["High"].max()
-    dist_52w = (close / high_52) if high_52 and high_52 > 0 else 0.8
-
-    if dist_52w >= 0.95:
-        high_score = 100
-    elif dist_52w >= 0.85:
-        high_score = 85
-    elif dist_52w >= 0.75:
-        high_score = 60
-    elif dist_52w >= 0.65:
-        high_score = 40
+    high_52 = latest.get("High_52W") or (df_prices["High"].max() if "High" in df_prices.columns else None)
+    if not high_52 or high_52 == 0:
+        high_score = 0
     else:
-        high_score = 20
+        dist_52w = (close / high_52)
+        if dist_52w >= 0.95:
+            high_score = 100
+        elif dist_52w >= 0.85:
+            high_score = 85
+        elif dist_52w >= 0.75:
+            high_score = 60
+        elif dist_52w >= 0.65:
+            high_score = 40
+        else:
+            high_score = 20
 
     # 3. MA Trend Alignment (25% weight)
     ma50 = latest.get("MA50")
@@ -268,10 +272,10 @@ def calculate_momentum_score(df_prices: pd.DataFrame) -> Dict[str, Any]:
 
     # 4. Volume / Price Momentum (25% weight)
     window = df_prices.iloc[-20:]
-    vol_ma = latest.get("Volume_MA20") or window["Volume"].mean()
+    vol_ma = latest.get("Volume_MA20") if latest.get("Volume_MA20") and not pd.isna(latest.get("Volume_MA20")) else (window["Volume"].mean() if "Volume" in window.columns else None)
     cur_vol = latest.get("Volume", 0)
 
-    if cur_vol > vol_ma * 1.2 and close > df_prices.iloc[-2]["Close"]:
+    if vol_ma and vol_ma > 0 and cur_vol > vol_ma * 1.2 and close > df_prices.iloc[-2]["Close"]:
         vol_score = 95
     elif close > df_prices.iloc[-2]["Close"]:
         vol_score = 75
@@ -287,9 +291,12 @@ def calculate_momentum_score(df_prices: pd.DataFrame) -> Dict[str, Any]:
     elif momentum >= 30:
         grade = "Neutral"
         status = "Consolidating / Neutral"
-    else:
+    elif momentum > 0:
         grade = "Bad"
         status = "Weak / Bearish Trend"
+    else:
+        grade = "N/A"
+        status = "Insufficient data"
 
     return {
         "score": momentum,

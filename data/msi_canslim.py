@@ -10,9 +10,12 @@ def compute_rs_rating(df_prices: pd.DataFrame) -> int:
     Formula: RS_raw = 0.4 * R_1Q + 0.2 * R_2Q + 0.2 * R_3Q + 0.2 * R_4Q
     """
     if df_prices is None or df_prices.empty or len(df_prices) < 20:
-        return 50
+        return None
 
-    closes = df_prices["Close"]
+    closes = df_prices["Close"].dropna()
+    if len(closes) < 20:
+        return None
+
     p_cur = closes.iloc[-1]
 
     p_1q = closes.iloc[-63] if len(closes) >= 63 else closes.iloc[0]
@@ -20,12 +23,15 @@ def compute_rs_rating(df_prices: pd.DataFrame) -> int:
     p_3q = closes.iloc[-189] if len(closes) >= 189 else closes.iloc[0]
     p_4q = closes.iloc[0]
 
-    r1 = ((p_cur - p_1q) / p_1q) * 100
-    r2 = ((p_1q - p_2q) / p_2q) * 100
-    r3 = ((p_2q - p_3q) / p_3q) * 100
-    r4 = ((p_3q - p_4q) / p_4q) * 100
+    r1 = ((p_cur - p_1q) / p_1q) * 100 if p_1q and p_1q != 0 else 0.0
+    r2 = ((p_1q - p_2q) / p_2q) * 100 if p_2q and p_2q != 0 else 0.0
+    r3 = ((p_2q - p_3q) / p_3q) * 100 if p_3q and p_3q != 0 else 0.0
+    r4 = ((p_3q - p_4q) / p_4q) * 100 if p_4q and p_4q != 0 else 0.0
 
     raw_rs = (0.4 * r1) + (0.2 * r2) + (0.2 * r3) + (0.2 * r4)
+
+    if np.isnan(raw_rs) or np.isinf(raw_rs):
+        return None
 
     # Scale raw RS to 1-99 percentile range (centered around 0% = 50 RS)
     scaled_rs = int(round(50 + (raw_rs * 0.8)))
@@ -37,11 +43,14 @@ def compute_eps_rating(fund: Dict[str, Any]) -> int:
     Evaluates latest EPS YoY growth %, Sales YoY growth %, and ROE.
     """
     if not fund:
-        return 50
+        return None
 
-    eps_yoy = fund.get("EPS_YoY") or fund.get("EarningsQuarterlyGrowth") or fund.get("EarningsGrowth") or fund.get("PAT_YoY") or fund.get("EPS_QoQ") or 0.0
-    sales_yoy = fund.get("Sales_YoY") or fund.get("RevenueGrowth") or fund.get("Sales_QoQ") or 0.0
-    roe = fund.get("ROE") or 10.0
+    eps_yoy = fund.get("EPS_YoY") or fund.get("EarningsQuarterlyGrowth") or fund.get("EarningsGrowth") or fund.get("PAT_YoY") or fund.get("EPS_QoQ")
+    sales_yoy = fund.get("Sales_YoY") or fund.get("RevenueGrowth") or fund.get("Sales_QoQ")
+    roe = fund.get("ROE")
+
+    if eps_yoy is None or sales_yoy is None or roe is None:
+        return None
 
     raw_eps_score = (eps_yoy * 0.5) + (sales_yoy * 0.3) + (roe * 0.2)
     scaled_eps = int(round(50 + (raw_eps_score * 0.6)))
@@ -88,11 +97,14 @@ def compute_buyer_demand(df_prices: pd.DataFrame) -> Dict[str, Any]:
 def compute_sponsorship_rating(fund: Dict[str, Any]) -> Dict[str, Any]:
     """Calculate Institutional Sponsorship Rating (A, B, C, D) based on FII + DII holding %."""
     if not fund:
-        return {"grade": "C", "total_inst": 0.0}
+        return {"grade": "N/A", "total_inst": None}
 
-    fii = fund.get("FII_Pct") or 0.0
-    dii = fund.get("DII_Pct") or 0.0
-    total_inst = fund.get("Institutional_Pct") or fund.get("InstitutionsPercentHeld") or (fii + dii)
+    fii = fund.get("FII_Pct")
+    dii = fund.get("DII_Pct")
+    total_inst = fund.get("Institutional_Pct") or fund.get("InstitutionsPercentHeld") or ((fii or 0) + (dii or 0) if (fii or dii) else None)
+
+    if total_inst is None:
+        return {"grade": "N/A", "total_inst": None}
 
     if total_inst >= 45:
         grade = "A"
@@ -118,17 +130,43 @@ def calculate_msi_ratings(symbol: str, prices: pd.DataFrame = None, fund: Dict[s
     buyer_demand = compute_buyer_demand(prices)
     sponsorship = compute_sponsorship_rating(fund)
 
-    ad_numeric = {"A+": 95, "A": 90, "A-": 85, "B": 75, "C": 50, "D": 35, "E": 20}.get(buyer_demand["grade"], 50)
-    spon_numeric = {"A": 90, "B": 75, "C": 50, "D": 30}.get(sponsorship["grade"], 50)
+    ad_numeric = {"A+": 95, "A": 90, "A-": 85, "B": 75, "C": 50, "D": 35, "E": 20, "N/A": 50}.get(buyer_demand["grade"], 50)
+    spon_numeric = {"A": 90, "B": 75, "C": 50, "D": 30, "N/A": 50}.get(sponsorship["grade"], 50)
+
+    if rs_rating is None:
+        rs_rating = 0
+    if eps_rating is None:
+        eps_rating = 0
 
     # Master Score (0-99 Composite Rating)
-    master_score = int(round(
-        (0.35 * eps_rating) +
-        (0.35 * rs_rating) +
-        (0.15 * ad_numeric) +
-        (0.15 * spon_numeric)
-    ))
-    master_score = int(np.clip(master_score, 1, 99))
+    has_rs = isinstance(rs_rating, (int, float)) and rs_rating > 0
+    has_eps = isinstance(eps_rating, (int, float)) and eps_rating > 0
+
+    if has_rs and has_eps:
+        master_score = int(round(
+            (0.35 * eps_rating) +
+            (0.35 * rs_rating) +
+            (0.15 * ad_numeric) +
+            (0.15 * spon_numeric)
+        ))
+    elif has_rs:
+        master_score = int(round(
+            (0.50 * rs_rating) +
+            (0.15 * ad_numeric) +
+            (0.15 * spon_numeric) +
+            (0.20 * 50)
+        ))
+    elif has_eps:
+        master_score = int(round(
+            (0.50 * eps_rating) +
+            (0.15 * ad_numeric) +
+            (0.15 * spon_numeric) +
+            (0.20 * 50)
+        ))
+    else:
+        master_score = 0
+
+    master_score = int(np.clip(master_score, 0, 99))
 
     if master_score >= 85:
         master_grade = "A+ (Market Leader)"
@@ -138,8 +176,10 @@ def calculate_msi_ratings(symbol: str, prices: pd.DataFrame = None, fund: Dict[s
         master_grade = "B (Growth Stock)"
     elif master_score >= 50:
         master_grade = "C (Average)"
-    else:
+    elif master_score > 0:
         master_grade = "D/E (Laggard)"
+    else:
+        master_grade = "N/A (Insufficient Data)"
 
     return {
         "Symbol": symbol,

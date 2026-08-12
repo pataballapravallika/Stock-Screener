@@ -101,6 +101,13 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         "CWIP": "CWIP",
         "Investments": "Investments",
         "Working Capital": "Working Capital",
+        "Cash & Cash Equivalents": "CashAndCashEquivalents",
+        "Cash and Cash Equivalents": "CashAndCashEquivalents",
+        "Cash": "CashAndCashEquivalents",
+        "Cash and Balance with RBI": "CashAndCashEquivalents",
+        "Cash with RBI": "CashAndCashEquivalents",
+        "Balances with RBI": "CashAndCashEquivalents",
+        "Cash in Hand": "CashAndCashEquivalents",
     }
 
     CASHFLOW_LABEL_RENAME = {
@@ -167,7 +174,7 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
     def get_company_info(self, symbol: str) -> Dict[str, Any]:
         cached = get_company_info(symbol)
         if cached and cached.get("company_name") and cached.get("sector") and cached.get("sector") != "Unknown":
-            return {
+            result = {
                 "ticker": symbol,
                 "company_name": cached.get("company_name"),
                 "sector": cached.get("sector"),
@@ -175,6 +182,33 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 "market_cap": cached.get("market_cap"),
                 "sharesOutstanding": cached.get("shares_outstanding"),
             }
+
+            # Attach cached shareholding data if present
+            if any(cached.get(k) is not None for k in ("promoter_pct", "fii_pct", "dii_pct",
+                                                        "govt_pct", "public_pct", "institutional_pct",
+                                                        "shareholders_count")):
+                import json as _json
+                sh_json = cached.get("shareholding_json")
+                sh_table = None
+                history = None
+                if sh_json:
+                    try:
+                        sh_table = pd.DataFrame(_json.loads(sh_json))
+                    except Exception:
+                        pass
+                result.update({
+                    "Promoter_Pct": cached.get("promoter_pct"),
+                    "FII_Pct": cached.get("fii_pct"),
+                    "DII_Pct": cached.get("dii_pct"),
+                    "Govt_Pct": cached.get("govt_pct"),
+                    "Public_Pct": cached.get("public_pct"),
+                    "Institutional_Pct": cached.get("institutional_pct"),
+                    "Shareholders_Count": cached.get("shareholders_count"),
+                    "Shareholding_Period": cached.get("shareholding_period"),
+                    "Shareholding_Table": sh_table,
+                    "Shareholding_History": history,
+                })
+            return result
 
         slug = self._ticker_to_slug(symbol)
         html = self._get(f"{self.BASE_URL}/company/{slug}/consolidated/") or self._get(f"{self.BASE_URL}/company/{slug}/")
@@ -199,13 +233,57 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "sharesOutstanding": shares_outstanding,
         }
 
-        save_company_info({
-            "ticker": symbol,
-            "company_name": company_name,
-            "sector": sector,
-            "industry": industry,
-            "market_cap": market_cap,
-            "shares_outstanding": shares_outstanding,
+        # Extract and persist shareholding data alongside company info
+        sh_info = self._extract_shareholding(soup)
+        if sh_info and any(sh_info.get(k) is not None for k in ("Promoter_Pct", "FII_Pct", "DII_Pct",
+                                                                   "Govt_Pct", "Public_Pct", "Institutional_Pct")):
+            import json as _json
+            sh_json = None
+            if sh_info.get("Shareholding_Table") is not None:
+                try:
+                    sh_json = _json.dumps(sh_info["Shareholding_Table"].to_dict(), default=str)
+                except Exception:
+                    sh_json = None
+
+            save_company_info({
+                "ticker": symbol,
+                "company_name": company_name,
+                "sector": sector,
+                "industry": industry,
+                "market_cap": market_cap,
+                "shares_outstanding": shares_outstanding,
+                "promoter_pct": sh_info.get("Promoter_Pct"),
+                "fii_pct": sh_info.get("FII_Pct"),
+                "dii_pct": sh_info.get("DII_Pct"),
+                "govt_pct": sh_info.get("Govt_Pct"),
+                "public_pct": sh_info.get("Public_Pct"),
+                "institutional_pct": sh_info.get("Institutional_Pct"),
+                "shareholders_count": sh_info.get("Shareholders_Count"),
+                "shareholding_json": sh_json,
+                "shareholding_period": sh_info.get("Shareholding_Period"),
+            })
+        else:
+            save_company_info({
+                "ticker": symbol,
+                "company_name": company_name,
+                "sector": sector,
+                "industry": industry,
+                "market_cap": market_cap,
+                "shares_outstanding": shares_outstanding,
+            })
+
+        # Merge shareholding into info returned to caller
+        info.update({
+            "Promoter_Pct": sh_info.get("Promoter_Pct"),
+            "FII_Pct": sh_info.get("FII_Pct"),
+            "DII_Pct": sh_info.get("DII_Pct"),
+            "Govt_Pct": sh_info.get("Govt_Pct"),
+            "Public_Pct": sh_info.get("Public_Pct"),
+            "Institutional_Pct": sh_info.get("Institutional_Pct"),
+            "Shareholders_Count": sh_info.get("Shareholders_Count"),
+            "Shareholding_Period": sh_info.get("Shareholding_Period"),
+            "Shareholding_Table": sh_info.get("Shareholding_Table"),
+            "Shareholding_History": sh_info.get("Shareholding_History"),
         })
 
         return info
@@ -300,6 +378,35 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
                         if prom is not None or fii is not None or dii is not None:
                             inst = round((fii or 0.0) + (dii or 0.0), 2)
+                            # Get the period label from the DataFrame columns (skip first col if it's unnamed/index)
+                            period_label = None
+                            if len(df.columns) > 1:
+                                col_labels = [str(c) for c in df.columns[1:]]
+                                period_label = col_labels[-1] if col_labels else None
+
+                            # Build historical time-series for chart plotting
+                            history = {"periods": [str(c) for c in df.columns[1:]] if len(df.columns) > 1 else []}
+                            category_map = {
+                                "Promoters": "Promoter_Pct",
+                                "FIIs": "FII_Pct",
+                                "DIIs": "DII_Pct",
+                                "Government": "Govt_Pct",
+                                "Public": "Public_Pct",
+                            }
+                            for _, hist_row in df.iterrows():
+                                hist_label = re.sub(r'[^a-zA-Z]', '', str(hist_row.iloc[0])).lower()
+                                for display_name, dict_key in category_map.items():
+                                    if display_name.lower() in hist_label:
+                                        vals = []
+                                        for col in df.columns[1:]:
+                                            v_str = re.sub(r'[^0-9.]', '', str(hist_row[col]))
+                                            try:
+                                                vals.append(float(v_str))
+                                            except (ValueError, TypeError):
+                                                vals.append(None)
+                                        history[display_name] = vals
+                                        break
+
                             return {
                                 "Promoter_Pct": prom,
                                 "FII_Pct": fii,
@@ -308,8 +415,9 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                                 "Public_Pct": pub,
                                 "Institutional_Pct": inst,
                                 "Shareholders_Count": sh_count,
-                                "Shareholding_Period": str(df.columns[-1]) if len(df.columns) > 1 else None,
+                                "Shareholding_Period": period_label,
                                 "Shareholding_Table": df,
+                                "Shareholding_History": history,
                             }
                 except Exception:
                     continue
@@ -407,9 +515,15 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "ebit":              ["EBIT", "EBITDA", "Operating Income"],
             "pat":               ["Net Income", "PAT", "Profit After Tax", "Net Profit", "Net Profit+"],
             "eps":               ["Diluted EPS", "Basic EPS", "EPS", "Earnings Per Share", "EPS in Rs"],
+            "depreciation_amortization": ["Depreciation", "Depreciation And Amortization",
+                                          "Depreciation, Depletion & Amortisation"],
             "equity":            ["Total Stockholder Equity", "Equity Capital", "Reserves",
                                   "Total Equity", "Equity"],
             "current_assets":    ["Total Current Assets", "Current Assets"],
+            "cash_and_cash_equivalents": ["CashAndCashEquivalents", "Cash & Cash Equivalents",
+                                          "Cash and Cash Equivalents", "Cash",
+                                          "Cash in Hand", "Balance with RBI", "Cash with RBI",
+                                          "Balances with RBI"],
             "assets":            ["Total Assets", "Assets"],
             "liabilities":       ["Total Liab", "Total Liabilities", "Liabilities", "Other Liabilities",
                                   "Deposits"],
@@ -767,10 +881,15 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 "liabilities": _extract_balance(balance_sheet, "Total Liab") if balance_sheet is not None else None,
                 "current_assets": _extract_balance(balance_sheet, "Total Current Assets") if balance_sheet is not None else None,
                 "current_liabilities": _extract_balance(balance_sheet, "Total Current Liabilities") if balance_sheet is not None else None,
+                "cash_and_cash_equivalents": _extract_balance(balance_sheet, "CashAndCashEquivalents") if balance_sheet is not None else None,
                 "working_capital": None,
                 "debt": _extract_balance(balance_sheet, "Total Debt") or _extract_balance(balance_sheet, "Borrowings") if balance_sheet is not None else None,
+                "total_debt": _extract_balance(balance_sheet, "Total Debt") or _extract_balance(balance_sheet, "Borrowings") if balance_sheet is not None else None,
+                "share_capital": _extract_balance(balance_sheet, "Equity Capital") if balance_sheet is not None else None,
+                "face_value": 10,
                 "operating_cash_flow": _extract_cf(cashflow, "Operating Cash Flow") if cashflow is not None else None,
                 "capex": _extract_cf(cashflow, "Capital Expenditures") if cashflow is not None else None,
+                "depreciation_amortization": self._extract_latest_value(q_income, "depreciation_amortization", col),
                 "source": "screener.in",
             }
 
@@ -827,10 +946,15 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 "liabilities": _extract_balance(balance_sheet, "Total Liab") if balance_sheet is not None else None,
                 "current_assets": _extract_balance(balance_sheet, "Total Current Assets") if balance_sheet is not None else None,
                 "current_liabilities": _extract_balance(balance_sheet, "Total Current Liabilities") if balance_sheet is not None else None,
+                "cash_and_cash_equivalents": _extract_balance(balance_sheet, "CashAndCashEquivalents") if balance_sheet is not None else None,
                 "working_capital": None,
                 "debt": _extract_balance(balance_sheet, "Total Debt") or _extract_balance(balance_sheet, "Borrowings") if balance_sheet is not None else None,
+                "total_debt": _extract_balance(balance_sheet, "Total Debt") or _extract_balance(balance_sheet, "Borrowings") if balance_sheet is not None else None,
+                "share_capital": _extract_balance(balance_sheet, "Equity Capital") if balance_sheet is not None else None,
+                "face_value": 10,
                 "operating_cash_flow": _extract_cf(cashflow, "Operating Cash Flow") if cashflow is not None else None,
                 "capex": _extract_cf(cashflow, "Capital Expenditures") if cashflow is not None else None,
+                "depreciation_amortization": self._extract_latest_value(annual_income, "depreciation_amortization", col),
                 "source": "screener.in",
             }
 
@@ -977,13 +1101,20 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "PE": _make_detail("PE", pe, target_rec),
             "PEG": _make_detail("PEG", peg, target_rec),
             "Piotroski": _make_detail("Piotroski", piotroski.get("score") if isinstance(piotroski, dict) else None, target_a_rec),
-            "Altman": _make_detail("Altman", altman.get("score") if isinstance(altman, dict) else None, target_rec),
+            "Altman": _make_detail("Altman", altman.get("value") if isinstance(altman, dict) else None, target_rec),
         }
 
         slug = self._ticker_to_slug(symbol)
         html = self._get(f"{self.BASE_URL}/company/{slug}/consolidated/") or self._get(f"{self.BASE_URL}/company/{slug}/")
         sh_info = {}
-        if html:
+        # Use cached shareholding from get_company_info if available
+        for k in ("Promoter_Pct", "FII_Pct", "DII_Pct", "Govt_Pct", "Public_Pct",
+                  "Institutional_Pct", "Shareholders_Count", "Shareholding_Period",
+                  "Shareholding_Table", "Shareholding_History"):
+            v = info.get(k)
+            if v is not None:
+                sh_info[k] = v
+        if html and not sh_info.get("Promoter_Pct"):
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(html, "html.parser")
             sh_info = self._extract_shareholding(soup)
@@ -1010,7 +1141,13 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "DividendYield": None,
             "NetIncome": (latest_quarterly or {}).get("pat"),
             "TotalAssets": (latest_quarterly or {}).get("assets") or (latest_annual or {}).get("assets"),
-            "TotalDebt": (latest_quarterly or {}).get("debt") or (latest_annual or {}).get("debt"),
+            "TotalLiabilities": (latest_quarterly or {}).get("liabilities") or (latest_annual or {}).get("liabilities"),
+            "TotalDebt": (latest_annual or {}).get("debt") or (latest_quarterly or {}).get("debt"),
+            "TotalCash": (latest_annual or {}).get("cash_and_cash_equivalents") or (latest_quarterly or {}).get("cash_and_cash_equivalents"),
+            "CashAndCashEquivalents": (latest_annual or {}).get("cash_and_cash_equivalents") or (latest_quarterly or {}).get("cash_and_cash_equivalents"),
+            "CurrentAssets": (latest_quarterly or {}).get("current_assets") or (latest_annual or {}).get("current_assets"),
+            "CurrentLiabilities": (latest_quarterly or {}).get("current_liabilities") or (latest_annual or {}).get("current_liabilities"),
+            "TotalStockholderEquity": (latest_quarterly or {}).get("equity") or (latest_annual or {}).get("equity"),
             "OperatingCashFlow": ratios_ttm.get("fcf") or (latest_quarterly or {}).get("operating_cash_flow") or (latest_annual or {}).get("operating_cash_flow"),
             "OperatingCashFlowTTM": ttm_record.get("operating_cash_flow") if ttm_record else None,
             "OperatingCashFlowAnnual": (latest_annual or {}).get("operating_cash_flow"),
@@ -1054,6 +1191,11 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "annual_growth": a_growth,
             "piotroski_f_score": piotroski,
             "altman_z_score": altman,
+            "Piotroski_FScore": piotroski.get("score") if isinstance(piotroski, dict) else None,
+            "Altman_ZScore": {"value": altman.get("value") if isinstance(altman, dict) else None,
+                              "available": altman.get("available", False) if isinstance(altman, dict) else False},
+            "Piotroski": piotroski.get("score") if isinstance(piotroski, dict) else None,
+            "Altman": altman,
             "metric_details": metric_details,
         }
 

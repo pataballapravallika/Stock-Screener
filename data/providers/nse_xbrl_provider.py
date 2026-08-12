@@ -31,6 +31,7 @@ from data.providers.base_provider import BaseFundamentalProvider, ReportIngestio
 from data.providers.official_reports_provider import _ReportHelpers
 from data.parsers.xbrl_parser import XBRLParser
 from data.calculations.financial_calculator import FinancialCalculator
+from fundamentals.banking import compute_banking_metrics
 from data.database import (
     init_db,
     save_company_info,
@@ -113,14 +114,25 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
     def get_company_info(self, symbol: str) -> Dict[str, Any]:
         cached = get_company_info(symbol)
         if cached and cached.get("company_name") and cached.get("sector") and cached.get("sector") != "Unknown":
-            return {
+            result = {
                 "ticker": symbol,
                 "company_name": cached.get("company_name"),
                 "sector": cached.get("sector"),
                 "industry": cached.get("industry"),
                 "market_cap": cached.get("market_cap"),
                 "sharesOutstanding": cached.get("shares_outstanding"),
+                # Return cached shareholding data if available
+                "Promoter_Pct": cached.get("promoter_pct"),
+                "FII_Pct": cached.get("fii_pct"),
+                "DII_Pct": cached.get("dii_pct"),
+                "Govt_Pct": cached.get("govt_pct"),
+                "Public_Pct": cached.get("public_pct"),
+                "Institutional_Pct": cached.get("institutional_pct"),
+                "Shareholders_Count": cached.get("shareholders_count"),
+                "Shareholding_Period": cached.get("shareholding_period"),
+                "Shareholding_History": None,
             }
+            return result
 
         clean = self._ticker_to_slug(symbol)
         data = self._nse_get(f"/api/quote-equity?symbol={clean}")
@@ -149,7 +161,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             shares = self._to_float(sec_details.get("issuedCap"))
 
         # Fallback for sector, industry, marketCap if missing from NSE quote endpoint
-        if not sector or not industry or not mcap:
+        if not sector or not industry or not mcap or not shares:
             try:
                 from data.providers.official_reports_provider import OfficialReportsProvider
                 off_info = OfficialReportsProvider().get_company_info(symbol)
@@ -159,6 +171,18 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                     industry = industry or off_info.get("industry")
                     mcap = mcap or off_info.get("market_cap")
                     shares = shares or off_info.get("sharesOutstanding")
+            except Exception:
+                pass
+
+        # Last resort: derive shares from XBRL filing data (Equity Share Capital / Face Value)
+        if not shares:
+            try:
+                a_df = get_latest_annual_reports(symbol, limit=1)
+                if not a_df.empty:
+                    share_cap = a_df.iloc[0].get("share_capital")
+                    face_val = a_df.iloc[0].get("face_value")
+                    if share_cap is not None and face_val is not None and face_val > 0:
+                        shares = (float(share_cap) * 1e7) / float(face_val)
             except Exception:
                 pass
 
@@ -208,6 +232,424 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
         self._issuer_map[clean] = clean
         return clean
+
+    def get_shareholding(self, symbol: str) -> Dict[str, Any]:
+        """Fetch official shareholding pattern from NSE's shareholder disclosures.
+
+        Primary source is screener.in's official NSE shareholder-pattern
+        disclosures (quarterly SHP tables).  NSE's own API endpoint
+        (/api/shareholder-patterns) is attempted first; if it returns 404/403
+        the method falls back to screener.in HTML parsing.
+
+        Returns a dict with:
+            - Promoter_Pct
+            - FII_Pct
+            - DII_Pct
+            - Govt_Pct
+            - Public_Pct
+            - Institutional_Pct
+            - Shareholders_Count
+            - Shareholding_Period
+            - Shareholding_Table (DataFrame of the full quarterly trend)
+            - Shareholding_History (dict of per-category time-series)
+        All values are None if the data cannot be obtained.
+        """
+        clean = self._ticker_to_slug(symbol)
+        sh_dict: Dict[str, Any] = {
+            "Promoter_Pct": None,
+            "FII_Pct": None,
+            "DII_Pct": None,
+            "Govt_Pct": None,
+            "Public_Pct": None,
+            "Institutional_Pct": None,
+            "Shareholders_Count": None,
+            "Shareholding_Period": None,
+            "Shareholding_Table": None,
+            "Shareholding_History": None,
+        }
+
+        # Check database cache first to avoid redundant network calls
+        cached = get_company_info(symbol)
+        if cached and cached.get("company_name"):
+            cached_pct_total = (cached.get("promoter_pct") or 0) + (cached.get("fii_pct") or 0) + (cached.get("dii_pct") or 0)
+            if cached_pct_total > 0:
+                sh_dict.update({
+                    "Promoter_Pct": cached.get("promoter_pct"),
+                    "FII_Pct": cached.get("fii_pct"),
+                    "DII_Pct": cached.get("dii_pct"),
+                    "Govt_Pct": cached.get("govt_pct"),
+                    "Public_Pct": cached.get("public_pct"),
+                    "Shareholders_Count": cached.get("shareholders_count"),
+                    "Shareholding_Period": cached.get("shareholding_period"),
+                })
+                fii = sh_dict["FII_Pct"]
+                dii = sh_dict["DII_Pct"]
+                if fii is not None and dii is not None:
+                    sh_dict["Institutional_Pct"] = round(fii + dii, 2)
+                elif fii is not None:
+                    sh_dict["Institutional_Pct"] = fii
+                elif dii is not None:
+                    sh_dict["Institutional_Pct"] = dii
+
+                # Reconstruct Shareholding_Table and Shareholding_History from JSON if available
+                sh_json = cached.get("shareholding_json")
+                if sh_json:
+                    try:
+                        import json as _json
+                        table_df = pd.DataFrame(_json.loads(sh_json))
+                        sh_dict["Shareholding_Table"] = table_df
+                        sh_dict["Shareholding_History"] = self._build_history_from_table(table_df)
+                    except Exception:
+                        pass
+
+                return sh_dict
+
+        # Primary: NSE shareholder-patterns API (may return 404 — fall through to screener.in)
+        endpoint = f"/api/shareholder-patterns?symbol={clean}"
+        data = self._nse_get(endpoint, referer_path=f"/report-widgets/shareholder-patterns?symbol={clean}")
+
+        if data and isinstance(data, dict):
+            try:
+                sh_dict = self._parse_nse_shareholding(data, sh_dict)
+            except Exception:
+                pass
+
+        # Fallback: screener.in shareholding data (parsed from HTML tab content)
+        # screener.in renders the official NSE quarterly shareholder-pattern
+        # disclosures in an HTML table (the "quarterly-shp" tab).
+        if not sh_dict["Promoter_Pct"]:
+            try:
+                from data.providers.official_reports_provider import OfficialReportsProvider
+                off = OfficialReportsProvider()
+                slug = off._ticker_to_slug(symbol)
+                html = off._get(f"{off.BASE_URL}/company/{slug}/consolidated/") or off._get(f"{off.BASE_URL}/company/{slug}/")
+                if html:
+                    sh_dict = self._parse_screener_shareholding(html, sh_dict)
+            except Exception:
+                pass
+
+        # Compute Institutional_Pct = FII + DII only if both are present
+        fii = sh_dict["FII_Pct"]
+        dii = sh_dict["DII_Pct"]
+        if fii is not None and dii is not None:
+            sh_dict["Institutional_Pct"] = round(fii + dii, 2)
+        elif fii is not None:
+            sh_dict["Institutional_Pct"] = fii
+        elif dii is not None:
+            sh_dict["Institutional_Pct"] = dii
+
+        # Persist shareholding data to database for caching
+        if any(sh_dict.get(k) is not None for k in ("Promoter_Pct", "FII_Pct", "DII_Pct",
+                                                     "Govt_Pct", "Public_Pct", "Institutional_Pct")):
+            try:
+                sh_json = None
+                if sh_dict.get("Shareholding_Table") is not None:
+                    import json as _json
+                    sh_json = _json.dumps(sh_dict["Shareholding_Table"].to_dict(), default=str)
+                save_company_info(
+                    ticker=symbol,
+                    promoter_pct=sh_dict.get("Promoter_Pct"),
+                    fii_pct=sh_dict.get("FII_Pct"),
+                    dii_pct=sh_dict.get("DII_Pct"),
+                    govt_pct=sh_dict.get("Govt_Pct"),
+                    public_pct=sh_dict.get("Public_Pct"),
+                    institutional_pct=sh_dict.get("Institutional_Pct"),
+                    shareholders_count=sh_dict.get("Shareholders_Count"),
+                    shareholding_json=sh_json,
+                    shareholding_period=sh_dict.get("Shareholding_Period"),
+                )
+            except Exception:
+                pass
+
+        return sh_dict
+
+    def _parse_screener_shareholding(self, html: str, sh_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse shareholding pattern from screener.in HTML.
+
+        screener.in renders shareholding data in an HTML table with rows like:
+          <tr>
+            <td><button ...>Promoters</button></td>
+            <td>50.27%</td> <td>50.30%</td> ...
+          </tr>
+          <tr>
+            <td><button ...>FIIs</button></td>
+            <td>22.60%</td> ...
+          </tr>
+          <tr>
+            <td>No. of Shareholders</td>
+            <td>3698648</td> ...
+          </tr>
+        """
+        from io import StringIO
+
+        # Find the shareholding pattern table section
+        shp_start = html.find("quarterly-shp")
+        if shp_start < 0:
+            shp_start = html.find("Shareholding Pattern")
+        if shp_start < 0:
+            shp_start = html.find("shareholding")
+
+        # Try pd.read_html on the entire HTML to find the shareholding table
+        sh_table = None
+        try:
+            tables = pd.read_html(StringIO(html))
+            for table in tables:
+                if table.empty or table.shape[1] < 2:
+                    continue
+                txt = " ".join(str(v) for v in table.iloc[:, 0].values)
+                if any(kw in txt.lower() for kw in ["promoter", "fii", "dii", "government", "public"]):
+                    sh_table = table
+                    sh_dict = self._parse_shareholding_table(table, sh_dict)
+                    break
+        except Exception:
+            pass
+
+        # Populate Shareholding_Table and Shareholding_History from the parsed table
+        if sh_table is not None and not sh_table.empty:
+            sh_dict["Shareholding_Table"] = sh_table.copy()
+
+            # Build historical time-series for each category
+            history = {"periods": [str(c) for c in sh_table.columns[1:]]}
+            category_map = {
+                "Promoters": "Promoter_Pct",
+                "FIIs": "FII_Pct",
+                "DIIs": "DII_Pct",
+                "Government": "Govt_Pct",
+                "Public": "Public_Pct",
+            }
+            for _, row in sh_table.iterrows():
+                label_raw = str(row.iloc[0]).lower().strip()
+                label_clean = re.sub(r'[^a-zA-Z]', '', label_raw)
+                for display_name, dict_key in category_map.items():
+                    if display_name.lower() in label_clean:
+                        vals = []
+                        for col in sh_table.columns[1:]:
+                            v_str = str(row[col]).replace("%", "").strip()
+                            try:
+                                vals.append(float(v_str))
+                            except (ValueError, TypeError):
+                                vals.append(None)
+                        history[display_name] = vals
+                        break
+            sh_dict["Shareholding_History"] = history
+
+        # Fallback: regex extraction from HTML (if table parsing failed)
+        if sh_dict.get("Promoter_Pct") is None or sh_dict.get("FII_Pct") is None:
+            # Fallback: regex extraction from HTML
+            try:
+                label_patterns = {
+                    "Promoter_Pct": r'>\s*Promoters?\s*<[^>]*>.*?<td[^>]*>\s*([\d.]+)\s*%',
+                    "FII_Pct": r'>\s*FIIs?\s*<[^>]*>.*?<td[^>]*>\s*([\d.]+)\s*%',
+                    "DII_Pct": r'>\s*DIIs?\s*<[^>]*>.*?<td[^>]*>\s*([\d.]+)\s*%',
+                    "Govt_Pct": r'>\s*Government\s*<[^>]*>.*?<td[^>]*>\s*([\d.]+)\s*%',
+                    "Public_Pct": r'>\s*Public\s*<[^>]*>.*?<td[^>]*>\s*([\d.]+)\s*%',
+                }
+                for key, pattern in label_patterns.items():
+                    if sh_dict.get(key) is None:
+                        match = re.search(pattern, html, re.DOTALL | re.IGNORECASE)
+                        if match:
+                            try:
+                                val = float(match.group(1))
+                                if 0 < val < 100:
+                                    sh_dict[key] = val
+                            except (ValueError, TypeError):
+                                pass
+            except Exception:
+                pass
+
+        pm_match = re.search(r'Promoter Holding:\s*([\d.]+)', html, re.IGNORECASE)
+        if pm_match and sh_dict["Promoter_Pct"] is None:
+            try:
+                sh_dict["Promoter_Pct"] = float(pm_match.group(1))
+            except (ValueError, TypeError):
+                pass
+
+        sh_count_match = re.search(r'No\.\s*of\s*Shareholders[:\s]+([\d,]+)', html, re.IGNORECASE)
+        if sh_count_match and sh_dict["Shareholders_Count"] is None:
+            try:
+                sh_dict["Shareholders_Count"] = int(sh_count_match.group(1).replace(",", ""))
+            except (ValueError, TypeError):
+                pass
+
+        # If still missing, try to parse from the shareholding table row
+        if sh_dict["Shareholders_Count"] is None and sh_dict.get("Shareholding_Table") is not None:
+            sh_table = sh_dict["Shareholding_Table"]
+            latest_col = sh_table.columns[-1] if len(sh_table.columns) > 1 else None
+            for _, row in sh_table.iterrows():
+                label_clean = re.sub(r'[^a-zA-Z]', '', str(row.iloc[0]).lower().strip())
+                if "shareholder" in label_clean:
+                    v_str = str(row.iloc[-1]).replace(",", "").strip()
+                    try:
+                        sh_dict["Shareholders_Count"] = int(float(v_str))
+                    except (ValueError, TypeError):
+                        pass
+                    break
+
+        return sh_dict
+
+    def _build_history_from_table(self, table: pd.DataFrame) -> Optional[Dict[str, Any]]:
+        """Reconstruct Shareholding_History from a stored Shareholding_Table DataFrame."""
+        if table is None or table.empty or table.shape[1] < 2:
+            return None
+
+        periods = [str(c) for c in table.columns[1:]]
+        history = {"periods": periods}
+        category_map = {
+            "Promoters": "Promoter_Pct",
+            "FIIs": "FII_Pct",
+            "DIIs": "DII_Pct",
+            "Government": "Govt_Pct",
+            "Public": "Public_Pct",
+        }
+
+        for _, row in table.iterrows():
+            label_clean = re.sub(r'[^a-zA-Z]', '', str(row.iloc[0])).lower()
+            for display_name in category_map:
+                if display_name.lower() in label_clean:
+                    vals = []
+                    for col in table.columns[1:]:
+                        v_str = str(row[col]).replace("%", "").strip()
+                        try:
+                            vals.append(float(v_str))
+                        except (ValueError, TypeError):
+                            vals.append(None)
+                    history[display_name] = vals
+                    break
+
+        return history
+
+    def _parse_shareholding_table(self, table: pd.DataFrame, sh_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse a screener.in shareholding table into shareholding dict."""
+        n_cols = len(table.columns)
+        if n_cols < 2:
+            return sh_dict
+
+        latest_col = table.columns[-1]
+
+        label_map = {
+            "Promoter_Pct": ["promoter", "promoters"],
+            "FII_Pct": ["fii", "fiis", "foreigninstitutional"],
+            "DII_Pct": ["dii", "diis", "domesticinstitutional"],
+            "Govt_Pct": ["government", "govt"],
+            "Public_Pct": ["public", "others", "publicandothers"],
+        }
+
+        for idx, row in table.iterrows():
+            label_raw = str(row.iloc[0]).lower().strip()
+            latest_raw = str(latest_col) if isinstance(latest_col, str) else ""
+
+            for target_key, keywords in label_map.items():
+                if sh_dict.get(target_key) is not None:
+                    continue
+                if any(kw in label_raw for kw in keywords):
+                    val_str = str(row.iloc[-1]).replace("%", "").strip()
+                    try:
+                        val = float(val_str)
+                        if 0 < val < 100:
+                            sh_dict[target_key] = val
+                            sh_dict["Shareholding_Period"] = latest_raw or str(row.iloc[-2]) if n_cols > 2 else None
+                    except (ValueError, TypeError):
+                        pass
+
+        return sh_dict
+
+    def _parse_nse_shareholding(self, data: Dict[str, Any], sh_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse NSE shareholder-patterns API response into shareholding dict."""
+        import json as _json
+
+        # The NSE API returns a nested structure with a list of shareholder categories
+        # and their percentages for each reporting quarter
+        raw = None
+        if "body" in data and isinstance(data["body"], str):
+            try:
+                raw = _json.loads(data["body"])
+            except Exception:
+                pass
+        elif "data" in data:
+            raw = data["data"]
+        else:
+            raw = data
+
+        if not raw:
+            return sh_dict
+
+        # NSE API structure: data holds a list, each with category and percentage
+        records = raw if isinstance(raw, list) else [raw]
+
+        # Look for the most recent quarter's patterns
+        latest_date = None
+        latest_records = None
+
+        for rec in records:
+            if isinstance(rec, dict):
+                if "quarter" in rec or "date" in rec or "reportingQuarter" in rec:
+                    if latest_records is None:
+                        latest_date = rec.get("quarter") or rec.get("date") or rec.get("reportingQuarter")
+                        latest_records = rec
+                        if "patterns" in rec and isinstance(rec["patterns"], list):
+                            latest_records = rec["patterns"]
+                    else:
+                        current_date = rec.get("quarter") or rec.get("date") or rec.get("reportingQuarter")
+                        if current_date and latest_date and current_date > latest_date:
+                            latest_date = current_date
+                            latest_records = rec.get("patterns", rec) if isinstance(rec, dict) else rec
+
+        if latest_records is None:
+            latest_records = records
+
+        if isinstance(latest_records, dict):
+            latest_records = [latest_records]
+
+        if not isinstance(latest_records, list):
+            return sh_dict
+
+        # Map NSE shareholder category names to our keys
+        nse_category_map = {
+            "promoter": "Promoter_Pct",
+            "promotergroup": "Promoter_Pct",
+            "foreigninstitutionalinvestorsfiimapfolder": "FII_Pct",
+            "fiimapfolder": "FII_Pct",
+            "fii": "FII_Pct",
+            "domesticinstitutionalinvestorsdiimapfolder": "DII_Pct",
+            "diimapfolder": "DII_Pct",
+            "dii": "DII_Pct",
+            "government": "Govt_Pct",
+            "public": "Public_Pct",
+            "publicandothers": "Public_Pct",
+            "others": "Public_Pct",
+        }
+
+        for rec in latest_records:
+            if not isinstance(rec, dict):
+                continue
+            # NSE pattern entries have fields like: "name"/"holder", "pctHeld"/"percentage"
+            name = rec.get("name") or rec.get("holder") or rec.get("category") or ""
+            pct = rec.get("pctHeld") or rec.get("percentage") or rec.get("holdingPct") or rec.get("pct")
+
+            if pct is not None:
+                pct_f = self._to_float(pct)
+                if pct_f is not None:
+                    name_lower = str(name).lower().strip()
+                    matched = False
+                    for key, mapped_key in nse_category_map.items():
+                        if key in name_lower:
+                            sh_dict[mapped_key] = round(pct_f, 2)
+                            matched = True
+                            break
+                    if not matched:
+                        # Try partial name matching
+                        if "promot" in name_lower:
+                            sh_dict["Promoter_Pct"] = round(pct_f, 2)
+                        elif "fii" in name_lower or "foreigninst" in name_lower:
+                            sh_dict["FII_Pct"] = round(pct_f, 2)
+                        elif "dii" in name_lower or "domesticinst" in name_lower:
+                            sh_dict["DII_Pct"] = round(pct_f, 2)
+                        elif "govern" in name_lower:
+                            sh_dict["Govt_Pct"] = round(pct_f, 2)
+                        elif "public" in name_lower or "other" in name_lower:
+                            sh_dict["Public_Pct"] = round(pct_f, 2)
+
+        return sh_dict
 
     def ingest_from_nse(self, symbol: str, max_filings: int = 5) -> int:
         issuer = self._resolve_issuer(symbol)
@@ -368,10 +810,52 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         curr_liab = _get(["TotalCurrentLiabilities", "CurrentLiabilities"])
         capex = _get(["PurchaseOfPropertyPlantAndEquipment", "CapEx", "CapitalExpenditure"])
         ocf = _get(["NetCashFlowsFromUsedInOperatingActivities", "OperatingCashFlow", "CashFlowFromOperatingActivities"])
+        gross_profit = _get(["GrossProfit", "GrossProfitLossFromOperations"])
+        retained_earnings = _get(["RetainedEarnings"])
+
+        # Cash & cash equivalents
+        cash_ce = _get(["CashAndCashEquivalents", "cashendcashequivalents", "cashequivalents"])
+
+        # Total debt: sum of borrowings (current + non-current) + loans (current + non-current)
+        borrowings_current = _get(["BorrowingsCurrent", "borrowingscurrent"])
+        borrowings_noncurrent = _get(["BorrowingsNoncurrent", "borrowingsnoncurrent"])
+        loans_current = _get(["LoansCurrent", "loanscurrent"])
+        loans_noncurrent = _get(["LoansNoncurrent", "loansnoncurrent"])
+        total_debt = None
+        debt_components = [borrowings_current, borrowings_noncurrent, loans_current, loans_noncurrent]
+        valid_debt_components = [d for d in debt_components if d is not None]
+        if valid_debt_components:
+            total_debt = sum(valid_debt_components)
+
+        # Depreciation, depletion & amortisation expense
+        dda = _get(["DepreciationDepletionAndAmortisationExpense", "depreciationdepletionandamortisationexpense",
+                     "DepreciationAndAmortization", "depreciationamortization"])
+
+        # Shares outstanding: equity share capital / face value per share
+        share_capital = _get(["EquityShareCapital", "equitysharecapital"])
+        face_value = _get(["FaceValueOfEquityShareCapital", "facevalueofequitysharecapital"])
+        shares_out = None
+        if share_capital is not None and face_value is not None and face_value > 0:
+            # share_capital is in crores (already converted), face_value is per share in rupees
+            # shares_out (in crores) = share_capital / face_value
+            shares_out_crores = share_capital / face_value
+            shares_out = shares_out_crores * 1e7  # convert to absolute count
+
+        # Banking-specific XBRL fields
+        interest_income = _get(["InterestIncomeFromBankingActivities", "InterestIncome"])
+        interest_expense = _get(["InterestExpense", "InterestPaid", "InterestCharges"])
+        total_income = _get(["TotalIncome", "TotalRevenueFromOperations", "OperatingIncome"])
+        non_interest_income = _get(["NonInterestIncome", "FeeAndCommissionIncome", "OtherIncome"])
+        gross_npa = _get(["GrossNPA", "GrossNonPerformingAssets", "NonPerformingAssetsGross"])
+        net_npa = _get(["NetNPA", "NetNonPerformingAssets", "NonPerformingAssetsNet"])
+        total_advances = _get(["TotalAdvances", "TotalCredit", "GrossAdvances"])
+        provisions = _get(["Provisions", "TotalProvisions", "ProvisionForNPA"])
+        total_deposits = _get(["TotalDeposits", "Deposits"])
+        car = _get(["CapitalAdequacyRatio", "CAR"])
 
         is_consol = any("consolidated" in str(k) or "consol" in str(k) for k in data_map.keys())
 
-        return {
+        result_map = {
             "q_revenue": revenue,
             "q_pat": pat,
             "q_diluted_eps": eps,
@@ -385,7 +869,31 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "cf_operating_cash_flow": ocf,
             "is_consolidated": is_consol,
             "xbrl_url": xbrl_url,
+            "gross_profit": gross_profit,
+            "retained_earnings": retained_earnings,
+            "interest_income": interest_income,
+            "interest_expense": interest_expense,
+            "total_income": total_income,
+            "non_interest_income": non_interest_income,
+            "gross_npa": gross_npa,
+            "net_npa": net_npa,
+            "total_advances": total_advances,
+            "provisions": provisions,
+            "total_deposits": total_deposits,
+            "car": car,
+            "cash_and_cash_equivalents": cash_ce,
+            "total_debt": total_debt,
+            "borrowings_current": borrowings_current,
+            "borrowings_noncurrent": borrowings_noncurrent,
+            "loans_current": loans_current,
+            "loans_noncurrent": loans_noncurrent,
+            "depreciation_amortization": dda,
+            "share_capital": share_capital,
+            "face_value": face_value,
+            "shares_outstanding": shares_out,
         }
+
+        return result_map
 
     def _store_filing(self, symbol: str, filing: Any) -> bool:
         def _get_attr(attr_name, default=None):
@@ -399,6 +907,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         pat = self._to_crores(_get_attr("q_pat") or _get_attr("ytd_pat"))
         eps = _get_attr("q_diluted_eps") or _get_attr("ytd_diluted_eps")
         ebit = self._to_crores(_get_attr("q_ebit") or _get_attr("ytd_ebit"))
+        gross_profit = self._to_crores(_get_attr("gross_profit"))
 
         assets = self._to_crores(_get_attr("bs_total_assets"))
         equity = self._to_crores(_get_attr("bs_equity"))
@@ -408,6 +917,32 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
         capex = self._to_crores(_get_attr("cf_capex"))
         ocf = self._to_crores(_get_attr("cf_operating_cash_flow"))
+
+        # Use actual borrowings from XBRL if available; fall back to liab - equity
+        actual_debt = self._to_crores(_get_attr("total_debt"))
+        debt_val = actual_debt if actual_debt else ((liab - equity) if liab and equity else None)
+
+        # Cash & cash equivalents from XBRL
+        cash_ce = self._to_crores(_get_attr("cash_and_cash_equivalents"))
+
+        # Depreciation & amortisation
+        dda = self._to_crores(_get_attr("depreciation_amortization"))
+
+        # Share capital and face value
+        share_cap = self._to_crores(_get_attr("share_capital"))
+        fv = _get_attr("face_value")
+        shares_out = _get_attr("shares_outstanding")
+
+        interest_income = self._to_crores(_get_attr("interest_income"))
+        interest_expense = self._to_crores(_get_attr("interest_expense"))
+        total_income = self._to_crores(_get_attr("total_income"))
+        non_interest_income = self._to_crores(_get_attr("non_interest_income"))
+        gross_npa = self._to_crores(_get_attr("gross_npa"))
+        net_npa = self._to_crores(_get_attr("net_npa"))
+        total_advances = self._to_crores(_get_attr("total_advances"))
+        provisions = self._to_crores(_get_attr("provisions"))
+        total_deposits = self._to_crores(_get_attr("total_deposits"))
+        car = _get_attr("car")
 
         date_str = _get_attr("period_end") or _get_attr("dt") or ""
         report_date = _ReportHelpers.normalize_period(date_str) or datetime.now().strftime("%Y-%m-%d")
@@ -434,12 +969,27 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             current_assets=c_assets,
             current_liabilities=c_liab,
             working_capital=(c_assets - c_liab) if c_assets and c_liab else None,
-            debt=(liab - equity) if liab and equity else None,
+            debt=dent_val,
             operating_cash_flow=ocf,
             capex=capex,
-            gross_profit=None,
+            gross_profit=gross_profit,
             cogs=None,
-            retained_earnings=None,
+            retained_earnings=self._to_crores(_get_attr("retained_earnings")),
+            interest_income=interest_income,
+            interest_expense=interest_expense,
+            total_income=total_income,
+            non_interest_income=non_interest_income,
+            gross_npa=gross_npa,
+            net_npa=net_npa,
+            total_advances=total_advances,
+            provisions=provisions,
+            total_deposits=total_deposits,
+            car=car,
+            cash_and_cash_equivalents=cash_ce,
+            total_debt=actual_debt,
+            depreciation_amortization=self._to_crores(_get_attr("depreciation_amortization")),
+            share_capital=share_cap,
+            face_value=fv,
             source="nse_xbrl",
             source_url=_get_attr("xbrl_url", ""),
             source_type="nse_xbrl",
@@ -583,12 +1133,36 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         eps = latest_q.get("eps") or latest_a.get("eps")
         ebit = latest_q.get("ebit") or latest_a.get("ebit")
 
+        # Depreciation & Amortisation from official filings (annual preferred, quarterly fallback)
+        dda_val = latest_a.get("depreciation_amortization") or latest_q.get("depreciation_amortization")
+        # TTM EBIT from the TTM record or annual filing
+        ttm_ebit_val = (ttm_rec.get("ebit") if ttm_rec else None) or latest_a.get("ebit") or latest_q.get("ebit")
+
+        # Derive shares outstanding from official filing data:
+        # Equity Share Capital / Face Value per Share
+        shares_out = info.get("sharesOutstanding")
+        if not shares_out:
+            share_cap = latest_a.get("share_capital") or latest_q.get("share_capital")
+            face_val = latest_a.get("face_value") or latest_q.get("face_value")
+            if share_cap is not None and face_val is not None and face_val > 0:
+                # share_cap is in crores (INR Crores), face_val is INR per share
+                # shares = share_cap (crores) × 1e7 / face_value
+                shares_out = (float(share_cap) * 1e7) / float(face_val)
+
         mcap = info.get("market_cap")
         if not mcap:
             try:
                 from data.providers.official_reports_provider import OfficialReportsProvider
                 off_info = OfficialReportsProvider().get_company_info(symbol)
                 mcap = off_info.get("market_cap")
+            except Exception:
+                pass
+        if not mcap:
+            try:
+                from data.providers.yahoo_price_provider import YahooPriceProvider
+                price_info = YahooPriceProvider().get_company_info(symbol)
+                if price_info and price_info.get("current_price") and shares_out:
+                    mcap = price_info["current_price"] * shares_out / 1e7
             except Exception:
                 pass
 
@@ -601,43 +1175,205 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         eps_g = q_growth.get("eps_qoq") or a_growth.get("eps_yoy")
         peg = self.calculator.compute_peg(ratios.get("pe"), eps_g)
 
-        # Retrieve shareholding from official disclosures only
-        sh_info = {}
-        try:
-            from data.providers.official_reports_provider import OfficialReportsProvider
-            off_dict = OfficialReportsProvider().build_fundamentals_dict(symbol)
-            if off_dict:
-                sh_info = off_dict
-        except Exception:
-            pass
+        # Compute TTM EPS and TTM PAT for accurate P/E (sum of last 4 distinct quarters)
+        ttm_eps = None
+        ttm_pat = None
+        if q_list and len(q_list) >= 4:
+            eps_vals = []
+            pat_vals = []
+            seen_periods = set()
+            for rec in q_list[:4]:
+                period_key = rec.get("report_date") or rec.get("quarter_or_year")
+                if period_key and period_key not in seen_periods:
+                    seen_periods.add(period_key)
+                    v_eps = rec.get("eps")
+                    if v_eps is not None and not (isinstance(v_eps, float) and v_eps != v_eps):
+                        eps_vals.append(float(v_eps))
+                    v_pat = rec.get("pat")
+                    if v_pat is not None and not (isinstance(v_pat, float) and v_pat != v_pat):
+                        pat_vals.append(float(v_pat))
+            if len(eps_vals) > 0:
+                ttm_eps = sum(eps_vals[:4])
+            if len(pat_vals) > 0:
+                ttm_pat = sum(pat_vals[:4])
 
+        # Compute PE = MarketCap (Cr) / TTM PAT (Cr) — both in crores
+        pe_ratio = ratios.get("pe")
+        if mcap and ttm_pat is not None and ttm_pat > 0:
+            pe_ratio = round(float(mcap) / ttm_pat, 2)
+        elif mcap and ttm_eps is not None and ttm_eps > 0:
+            # Fallback: use price per share / TTM EPS if shares outstanding is known
+            shares = q_list[0].get("shares_outstanding") if q_list else None
+            if shares is not None and float(shares) > 0:
+                price_per_share = (float(mcap) * 1e7) / float(shares)
+                pe_ratio = round(price_per_share / ttm_eps, 2)
+
+        # Compute annual free cash flow = OCF + CapEx (where CapEx is negative cash flow)
+        fcf_annual = None
+        if latest_a:
+            ocf_a = self.calculator._safe(latest_a.get("operating_cash_flow"))
+            cap_a = self.calculator._safe(latest_a.get("capex"))
+            if ocf_a is not None and cap_a is not None:
+                fcf_annual = self.calculator.compute_fcf(ocf_a, cap_a)
+
+        # Retrieve shareholding from official NSE shareholder disclosures
+        sh_info = self.get_shareholding(symbol)
+
+        # Compute banking metrics if the company is a financial institution
+        is_bank = any(b.lower() in (info.get("sector") or "").lower()
+                      for b in {"Financial Services", "Banking", "Finance", "Insurance"})
+        bank_metrics = {}
+        if is_bank:
+            bank_income = {}
+            bank_balance = {}
+            for rec in [latest_a, latest_q]:
+                if rec:
+                    bank_income = {
+                        **bank_income,
+                        "Interest_Income": rec.get("interest_income"),
+                        "Interest_Expense": rec.get("interest_expense"),
+                        "Total_Income": rec.get("total_income"),
+                        "Non_Interest_Income": rec.get("non_interest_income"),
+                        "ROA": rec.get("roa"),
+                        "ROE": rec.get("roe"),
+                    }
+                    bank_balance = {
+                        **bank_balance,
+                        "Gross_NPA": rec.get("gross_npa"),
+                        "Net_NPA": rec.get("net_npa"),
+                        "Total_Advances": rec.get("total_advances"),
+                        "Provisions": rec.get("provisions"),
+                        "Total_Deposits": rec.get("total_deposits"),
+                        "CAR": rec.get("car"),
+                    }
+            bank_metrics = compute_banking_metrics(bank_income, bank_balance)
+
+        # Build metric_details lineage dict (used by UI helper for source attribution)
+        def _make_detail(metric_name, val, rec):
+            if not rec:
+                rec = {}
+            p_type = rec.get("period") or "N/A"
+            q = rec.get("quarter")
+            fy = rec.get("financial_year")
+            if q and fy:
+                q_fy = f"Q{q} FY{fy}"
+            elif fy:
+                q_fy = f"FY{fy}"
+            elif q:
+                q_fy = f"Q{q}"
+            else:
+                q_fy = "N/A"
+            r_date = rec.get("report_date") or "N/A"
+            c_name = rec.get("company") or info.get("company_name") or symbol
+            is_c = bool(rec.get("consolidated", 1)) if rec else True
+            u_str = rec.get("unit") or "INR_Crores"
+            s_url = rec.get("source_url") or "N/A"
+            s_type = rec.get("source_type") or "nse_xbrl"
+            safe_val = FinancialCalculator._safe(val) if val is not None else None
+            return {
+                "metric": metric_name,
+                "company": c_name,
+                "ticker": symbol,
+                "period": p_type,
+                "quarter_or_year": q_fy,
+                "report_date": r_date,
+                "consolidated": "Consolidated" if is_c else "Standalone",
+                "is_consolidated": is_c,
+                "value": safe_val,
+                "unit": u_str,
+                "source_url": s_url,
+                "source_type": s_type,
+            }
+
+        target_rec = latest_q or latest_a
+        target_a_rec = latest_a or latest_q
+
+        metric_details = {
+            "Revenue": _make_detail("Revenue", rev, target_rec),
+            "PAT": _make_detail("PAT", pat, target_rec),
+            "EPS": _make_detail("EPS", eps, target_rec),
+            "EBIT": _make_detail("EBIT", ebit, target_rec),
+            "ROE": _make_detail("ROE", ratios.get("roe"), target_rec),
+            "ROCE": _make_detail("ROCE", ratios.get("roce"), target_rec),
+            "ROA": _make_detail("ROA", ratios.get("roa"), target_rec),
+            "DebtEquity": _make_detail("DebtEquity", ratios.get("debt_equity"), target_rec),
+            "OPM": _make_detail("OPM", ratios.get("opm"), target_rec),
+            "NPM": _make_detail("NPM", ratios.get("npm"), target_rec),
+            "FreeCashFlow": _make_detail("FreeCashFlow", ratios.get("fcf") or fcf_annual, target_rec),
+            "PE": _make_detail("PE", pe_ratio, target_rec),
+            "PEG": _make_detail("PEG", peg, target_rec),
+            "Piotroski": _make_detail("Piotroski", piotroski.get("score") if isinstance(piotroski, dict) else None, target_a_rec),
+            "Altman": _make_detail("Altman", altman.get("value") if isinstance(altman, dict) else None, target_rec),
+        }
+
+        piotroski_score = piotroski.get("score") if isinstance(piotroski, dict) else None
+        altman_value = altman.get("value") if isinstance(altman, dict) else None
+        altman_available = altman.get("available", False) if isinstance(altman, dict) else False
+        altman_dict = {"value": altman_value, "available": altman_available} if isinstance(altman, dict) else {"value": None, "available": False}
+
+        ratios_q_full = self.calculator.compute_all_ratios(latest_q) if latest_q else {}
+
+        qf = self.get_quarterly_financials(symbol)
+        af = self.get_annual_financials(symbol)
+        qbs = self.get_quarterly_balance_sheet(symbol)
+        bs = self.get_annual_balance_sheet(symbol)
+        cf = self.get_annual_cashflow(symbol)
         result = {
             "Symbol": symbol,
             "Company": info.get("company_name", symbol),
             "Sector": info.get("sector", "N/A"),
             "Industry": info.get("industry", "N/A"),
             "MarketCap": mcap,
-            "Revenue": rev,
-            "PAT": pat,
-            "EPS": eps,
-            "EBIT": ebit,
+            "PE": pe_ratio,
+            "PEG": peg,
+            "ForwardPE": None,
+            "PriceSales": None,
             "ROE": ratios.get("roe"),
             "ROCE": ratios.get("roce"),
             "ROA": ratios.get("roa"),
+            "RevenueGrowth": a_growth.get("revenue_growth"),
+            "Revenue_Growth": a_growth.get("revenue_growth"),
+            "EarningsGrowth": a_growth.get("eps_growth"),
+            "EPS_Growth": a_growth.get("eps_growth"),
+            "PAT_Growth": a_growth.get("pat_growth"),
+            "EarningsQuarterlyGrowth": q_growth.get("eps_yoy") or q_growth.get("eps_qoq"),
             "DebtEquity": ratios.get("debt_equity"),
+            "Debt_Equity": ratios.get("debt_equity"),
+            "ProfitMargin": ratios.get("npm"),
+            "GrossMargin": ratios.get("gross_margin"),
+            "GrossMargins": ratios.get("gross_margin"),
+            "DividendYield": None,
+            "NetIncome": pat,
+            "TotalAssets": latest_q.get("assets") or latest_a.get("assets"),
+            "TotalLiabilities": latest_q.get("liabilities") or latest_a.get("liabilities"),
+            "TotalDebt": latest_a.get("total_debt") or latest_q.get("total_debt") or latest_a.get("debt") or latest_q.get("debt"),
+            "TotalCash": latest_a.get("cash_and_cash_equivalents") or latest_q.get("cash_and_cash_equivalents"),
+            "CashAndCashEquivalents": latest_a.get("cash_and_cash_equivalents") or latest_q.get("cash_and_cash_equivalents"),
+            "CurrentAssets": latest_q.get("current_assets") or latest_a.get("current_assets"),
+            "CurrentLiabilities": latest_q.get("current_liabilities") or latest_a.get("current_liabilities"),
+            "TotalStockholderEquity": latest_q.get("equity") or latest_a.get("equity"),
+            "WorkingCapital": latest_q.get("working_capital") or latest_a.get("working_capital"),
+            "RetainedEarnings": latest_q.get("retained_earnings") or latest_a.get("retained_earnings"),
+            "EBIT": ebit,
+            "Revenue": rev,
+            "PAT": pat,
+            "EPS": eps,
+            "TTMEPS": ttm_rec.get("eps") if ttm_rec else None,
             "OPM": ratios.get("opm"),
             "NPM": ratios.get("npm"),
-            "FreeCashFlow": ratios.get("fcf"),
-            "PE": ratios.get("pe"),
-            "PEG": peg,
-            "Piotroski": piotroski.get("score") if isinstance(piotroski, dict) else None,
-            "Altman": altman,
-            "Sales_QoQ": q_growth.get("sales_qoq"),
-            "Sales_YoY": q_growth.get("sales_yoy"),
-            "PAT_QoQ": q_growth.get("pat_qoq"),
-            "PAT_YoY": q_growth.get("pat_yoy"),
-            "EPS_QoQ": q_growth.get("eps_qoq"),
-            "EPS_YoY": q_growth.get("eps_yoy"),
+            "OperatingCashFlow": ratios.get("fcf") or latest_q.get("operating_cash_flow") or latest_a.get("operating_cash_flow"),
+            "OperatingCashFlowTTM": ttm_rec.get("operating_cash_flow") if ttm_rec else None,
+            "OperatingCashFlowAnnual": latest_a.get("operating_cash_flow"),
+            "FreeCashFlow": ratios.get("fcf") or fcf_annual,
+            "FreeCashFlowTTM": ttm_rec.get("fcf") if ttm_rec else None,
+            "FreeCashFlowAnnual": fcf_annual,
+            "CurrentRatio": None,
+            "QuickRatio": None,
+            "BookValue": None,
+            "SharesOutstanding": shares_out,
+            "FloatShares": None,
+            "InstitutionsPercentHeld": sh_info.get("Institutional_Pct"),
+            "InsidersPercentHeld": sh_info.get("Promoter_Pct"),
             "Promoter_Pct": sh_info.get("Promoter_Pct"),
             "FII_Pct": sh_info.get("FII_Pct"),
             "DII_Pct": sh_info.get("DII_Pct"),
@@ -648,8 +1384,46 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "Shareholding_Period": sh_info.get("Shareholding_Period"),
             "Shareholding_Table": sh_info.get("Shareholding_Table"),
             "Shareholding_History": sh_info.get("Shareholding_History"),
-            "InsidersPercentHeld": sh_info.get("Promoter_Pct"),
-            "InstitutionsPercentHeld": sh_info.get("Institutional_Pct"),
+            "SharesShort": None,
+            "SharesShortPriorMonth": None,
+            "TotalCash": latest_a.get("cash_and_cash_equivalents") or latest_q.get("cash_and_cash_equivalents"),
+            "EBITDA": (ebit + dda_val) if (ebit and dda_val) else None,
+            "EBITDATTM": (ttm_ebit_val + dda_val) if (ttm_ebit_val and dda_val) else None,
+            "EnterpriseValue": None,
+            "Piotroski": piotroski_score,
+            "PiotroskiFScore": piotroski_score,
+            "Piotroski_FScore": piotroski_score,
+            "piotroski_f_score": piotroski,
+            "Altman": altman,
+            "AltmanZScore": altman_dict,
+            "Altman_ZScore": altman_dict,
+            "altman_z_score": altman,
+            "Sales_QoQ": q_growth.get("sales_qoq"),
+            "Sales_YoY": q_growth.get("sales_yoy"),
+            "PAT_QoQ": q_growth.get("pat_qoq"),
+            "PAT_YoY": q_growth.get("pat_yoy"),
+            "EPS_QoQ": q_growth.get("eps_qoq"),
+            "EPS_YoY": q_growth.get("eps_yoy"),
+            "NIM": bank_metrics.get("NIM"),
+            "NII": bank_metrics.get("NII"),
+            "CASA_Ratio": bank_metrics.get("CASA_Ratio"),
+            "GNPA": bank_metrics.get("GNPA"),
+            "NNPA": bank_metrics.get("NNPA"),
+            "PCR": bank_metrics.get("PCR"),
+            "CAR": bank_metrics.get("CAR"),
+            "quarterly_financials": qf if not qf.empty else pd.DataFrame(),
+            "annual_financials": af if not af.empty else pd.DataFrame(),
+            "quarterly_balance_sheet": qbs if not qbs.empty else pd.DataFrame(),
+            "balance_sheet": bs if not bs.empty else pd.DataFrame(),
+            "cashflow": cf if not cf.empty else pd.DataFrame(),
+            "quarterly_roe": ratios_q_full.get("roe"),
+            "quarterly_roa": ratios_q_full.get("roa"),
+            "quarterly_debt_equity": ratios_q_full.get("debt_equity"),
+            "quarterly_growth": q_growth,
+            "annual_growth": a_growth,
+            "piotroski_f_score": piotroski,
+            "altman_z_score": altman,
+            "metric_details": metric_details,
             "fundamentals_source": "nse_xbrl",
         }
 

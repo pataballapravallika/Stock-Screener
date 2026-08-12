@@ -1,10 +1,9 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
 from data.fetch_fundamentals import fetch_fundamentals
 from data.fetch_prices import fetch_prices
+from data.database import get_latest_quarterly_reports
 
 st.set_page_config(page_title="Catalysts", layout="wide")
 
@@ -39,19 +38,18 @@ company = st.selectbox("Company", list(COMPANIES.keys()))
 symbol = COMPANIES[company]
 
 fund = fetch_fundamentals(symbol) or {}
-ticker = yf.Ticker(symbol)
 
 company_name = fund.get("Company") or symbol
-sector = fund.get("Sector") or "Technology"
-industry = fund.get("Industry") or "IT Services"
+sector = fund.get("Sector") or "N/A"
+industry = fund.get("Industry") or "N/A"
 
 mcap = fund.get("MarketCap")
 if not mcap:
     try:
-        fi = getattr(ticker, "fast_info", {})
-        mc = fi.get("marketCap") or (ticker.info.get("marketCap") if hasattr(ticker, "info") else None)
-        if mc:
-            mcap = mc / 1e7
+        from data.database import get_company_info as db_get_company_info
+        cached = db_get_company_info(symbol)
+        if cached and cached.get("market_cap"):
+            mcap = float(cached["market_cap"])
     except Exception:
         pass
 
@@ -66,17 +64,18 @@ st.divider()
 
 st.markdown("### Earnings & Dividend Calendar")
 try:
-    calendar = ticker.calendar
-    if calendar is not None and not calendar.empty:
+    q_df = get_latest_quarterly_reports(symbol, n=8)
+    if not q_df.empty:
         cal_rows = []
-        if isinstance(calendar, pd.DataFrame):
-            for idx in calendar.index:
-                val = calendar.loc[idx].iloc[0] if not calendar.loc[idx].empty else "N/A"
-                cal_rows.append({"Event": str(idx), "Date": str(val)})
-        elif isinstance(calendar, dict):
-            for k, v in calendar.items():
-                cal_rows.append({"Event": str(k), "Date": str(v)})
-
+        for _, row in q_df.iterrows():
+            rd = row.get("report_date", "")
+            q = row.get("quarter", 1)
+            fy = row.get("financial_year", "")
+            period = row.get("period", "")
+            cal_rows.append({
+                "Event": f"Q{q} FY{fy} Results",
+                "Date": rd,
+            })
         if cal_rows:
             cal_df = pd.DataFrame(cal_rows)
             st.dataframe(cal_df, use_container_width=True, hide_index=True)
@@ -155,76 +154,14 @@ for cat, desc in catalyst_summary.items():
 st.divider()
 
 st.markdown("### Recent News & Announcements")
-try:
-    raw_news = ticker.news
-    if raw_news and len(raw_news) > 0:
-        for item in raw_news[:10]:
-            cnt = item.get("content") if isinstance(item.get("content"), dict) else item
-            title = cnt.get("title") or item.get("title") or "No title"
-            summary = cnt.get("summary") or cnt.get("description") or ""
-
-            prov = cnt.get("provider") if isinstance(cnt.get("provider"), dict) else item.get("publisher")
-            pub_name = "Unknown"
-            if isinstance(prov, dict):
-                pub_name = prov.get("displayName") or prov.get("name") or "Unknown"
-            elif isinstance(prov, str):
-                pub_name = prov
-
-            pub_date = cnt.get("pubDate") or cnt.get("published") or item.get("published")
-            date_str = "N/A"
-            if pub_date:
-                try:
-                    dt = datetime.fromisoformat(str(pub_date).replace("Z", "+00:00"))
-                    date_str = dt.strftime("%Y-%m-%d %H:%M")
-                except Exception:
-                    date_str = str(pub_date)[:10]
-            elif item.get("providerPublishTime"):
-                try:
-                    dt = datetime.fromtimestamp(item["providerPublishTime"])
-                    date_str = dt.strftime("%Y-%m-%d %H:%M")
-                except Exception:
-                    pass
-
-            canon = cnt.get("canonicalUrl") if isinstance(cnt.get("canonicalUrl"), dict) else {}
-            click = cnt.get("clickThroughUrl") if isinstance(cnt.get("clickThroughUrl"), dict) else {}
-            link = canon.get("url") or click.get("url") or item.get("link") or ""
-
-            with st.expander(f"{title} ({date_str})", expanded=False):
-                st.caption(f"Source: {pub_name}")
-                if summary:
-                    st.write(summary)
-                if link:
-                    st.markdown(f"[Read full article →]({link})")
-    else:
-        st.info("News data unavailable for this ticker.")
-except Exception:
-    st.info("News data unavailable.")
+st.info("News data is not available from official NSE filings within this module. Please refer to the company's investor relations page for announcements.")
 
 st.divider()
 
 st.markdown("### Dividend History")
-try:
-    dividends = ticker.dividends
-    if dividends is not None and not dividends.empty:
-        div_df = dividends.reset_index()
-        div_df.columns = ["Date", "Dividend"]
-        div_df["Dividend"] = div_df["Dividend"].apply(lambda x: f"₹{x:.4f}" if pd.notna(x) else "N/A")
-        st.dataframe(div_df.tail(12), use_container_width=True, hide_index=True)
-    else:
-        st.info("Dividend history unavailable.")
-except Exception:
-    st.info("Dividend history unavailable.")
+st.info("Dividend history is sourced from official NSE company filings. Please refer to the company's annual reports for dividend declarations.")
 
 st.divider()
 
 st.markdown("### Stock Split History")
-try:
-    splits = ticker.splits
-    if splits is not None and not splits.empty:
-        split_df = splits.reset_index()
-        split_df.columns = ["Date", "Split Ratio"]
-        st.dataframe(split_df, use_container_width=True, hide_index=True)
-    else:
-        st.info("No stock splits recorded.")
-except Exception:
-    st.info("Stock split data unavailable.")
+st.info("Stock split data is not available from official NSE filings within this module.")

@@ -300,7 +300,11 @@ class FinancialCalculator:
 
         if latest_4:
             for key in ["equity", "assets", "liabilities", "current_assets", "current_liabilities",
-                        "working_capital", "debt", "shares_outstanding", "market_cap", "retained_earnings"]:
+                        "working_capital", "debt", "total_debt", "cash_and_cash_equivalents",
+                        "depreciation_amortization", "shares_outstanding", "market_cap",
+                        "retained_earnings", "share_capital", "face_value",
+                        "interest_income", "interest_expense", "total_income", "non_interest_income",
+                        "gross_npa", "net_npa", "total_advances", "provisions", "total_deposits", "car"]:
                 ttm[key] = latest_4[0].get(key)
 
         ttm.update(cls.compute_all_ratios(ttm))

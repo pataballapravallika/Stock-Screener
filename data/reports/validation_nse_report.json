@@ -1,0 +1,759 @@
+{
+  "timestamp": "2026-08-12T23:43:10.004936",
+  "tolerance_pct": 0.05,
+  "shareholding_tolerance_pct": 0.1,
+  "tickers": [
+    "RELIANCE.NS",
+    "TCS.NS",
+    "INFY.NS",
+    "HDFCBANK.NS",
+    "SBIN.NS"
+  ],
+  "results": [
+    {
+      "symbol": "RELIANCE.NS",
+      "checks": [
+        {
+          "field": "Company Name",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "RELIANCE",
+          "app_value": "RELIANCE"
+        },
+        {
+          "field": "Sector",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "Energy",
+          "app_value": "Energy"
+        },
+        {
+          "field": "Industry",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "Refineries/Petrochem",
+          "app_value": "Refineries/Petrochem"
+        },
+        {
+          "field": "Market Cap (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 1798465.5458304,
+          "app_value": 1798465.5458304
+        },
+        {
+          "field": "Revenue (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 309468.0,
+          "app_value": 309468.0
+        },
+        {
+          "field": "PAT (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 23196.0,
+          "app_value": 23196.0
+        },
+        {
+          "field": "EPS",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 15.48,
+          "app_value": 15.48
+        },
+        {
+          "field": "P/E Ratio",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 20.4,
+          "app_value": 20.4
+        },
+        {
+          "field": "ROE",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.10616066892754658,
+          "app_value": 0.10616066892754658
+        },
+        {
+          "field": "ROCE",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.1228623141564318,
+          "app_value": 0.1228623141564318
+        },
+        {
+          "field": "Debt/Equity",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.7700309841234971,
+          "app_value": 0.7700309841234971
+        },
+        {
+          "field": "OPM",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.15354414672922564,
+          "app_value": 0.15354414672922564
+        },
+        {
+          "field": "NPM",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.07495443793865601,
+          "app_value": 0.07495443793865601
+        },
+        {
+          "field": "Promoter %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 50.48,
+          "app_value": 50.48
+        },
+        {
+          "field": "FII %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 17.19,
+          "app_value": 17.19
+        },
+        {
+          "field": "DII %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 21.1,
+          "app_value": 21.1
+        },
+        {
+          "field": "Institutional %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 38.29,
+          "app_value": 38.29
+        },
+        {
+          "field": "Public %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 11.05,
+          "app_value": 11.05
+        },
+        {
+          "field": "FII/DII Split",
+          "status": "WARNING",
+          "detail": "FII + DII == Institutional_Pct; may be a split rather than independent data",
+          "reference_value": null,
+          "app_value": "FII=17.19, DII=21.1, INST=38.29"
+        },
+        {
+          "field": "Session VWAP",
+          "status": "PASS",
+          "detail": "Session VWAP = 1315.94, 73 bars",
+          "reference_value": null,
+          "app_value": 1315.94
+        }
+      ],
+      "passed": 19,
+      "failed": 0,
+      "no_data": 0
+    },
+    {
+      "symbol": "TCS.NS",
+      "checks": [
+        {
+          "field": "Company Name",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "TCS",
+          "app_value": "TCS"
+        },
+        {
+          "field": "Sector",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "Technology",
+          "app_value": "Technology"
+        },
+        {
+          "field": "Industry",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "IT - Software",
+          "app_value": "IT - Software"
+        },
+        {
+          "field": "Market Cap (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 850142.0097536,
+          "app_value": 850142.0097536
+        },
+        {
+          "field": "Revenue (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 72275.0,
+          "app_value": 72275.0
+        },
+        {
+          "field": "PAT (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 13420.0,
+          "app_value": 13420.0
+        },
+        {
+          "field": "EPS",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 36.9,
+          "app_value": 36.9
+        },
+        {
+          "field": "P/E Ratio",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 16.98,
+          "app_value": 16.98
+        },
+        {
+          "field": "ROE",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.265034067344722,
+          "app_value": 0.265034067344722
+        },
+        {
+          "field": "ROCE",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.36389308336438336,
+          "app_value": 0.36389308336438336
+        },
+        {
+          "field": "Debt/Equity",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.007070208353905401,
+          "app_value": 0.007070208353905401
+        },
+        {
+          "field": "OPM",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.2567416118989969,
+          "app_value": 0.2567416118989969
+        },
+        {
+          "field": "NPM",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.18567969560705638,
+          "app_value": 0.18567969560705638
+        },
+        {
+          "field": "Promoter %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 71.77,
+          "app_value": 71.77
+        },
+        {
+          "field": "FII %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 9.07,
+          "app_value": 9.07
+        },
+        {
+          "field": "DII %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 13.41,
+          "app_value": 13.41
+        },
+        {
+          "field": "Institutional %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 22.48,
+          "app_value": 22.48
+        },
+        {
+          "field": "Public %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 5.69,
+          "app_value": 5.69
+        },
+        {
+          "field": "FII/DII Split",
+          "status": "WARNING",
+          "detail": "FII + DII == Institutional_Pct; may be a split rather than independent data",
+          "reference_value": null,
+          "app_value": "FII=9.07, DII=13.41, INST=22.48"
+        },
+        {
+          "field": "Session VWAP",
+          "status": "PASS",
+          "detail": "Session VWAP = 2338.66, 73 bars",
+          "reference_value": null,
+          "app_value": 2338.66
+        }
+      ],
+      "passed": 19,
+      "failed": 0,
+      "no_data": 0
+    },
+    {
+      "symbol": "INFY.NS",
+      "checks": [
+        {
+          "field": "Company Name",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "INFY",
+          "app_value": "INFY"
+        },
+        {
+          "field": "Sector",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "Technology",
+          "app_value": "Technology"
+        },
+        {
+          "field": "Industry",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "IT - Software",
+          "app_value": "IT - Software"
+        },
+        {
+          "field": "Market Cap (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 476334.9942272,
+          "app_value": 476334.9942272
+        },
+        {
+          "field": "Revenue (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 48211.0,
+          "app_value": 48211.0
+        },
+        {
+          "field": "PAT (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 7775.0,
+          "app_value": 7775.0
+        },
+        {
+          "field": "EPS",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 19.15,
+          "app_value": 19.15
+        },
+        {
+          "field": "P/E Ratio",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 15.71,
+          "app_value": 15.71
+        },
+        {
+          "field": "ROE",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.15324424471775466,
+          "app_value": 0.15324424471775466
+        },
+        {
+          "field": "ROCE",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.22486991485335855,
+          "app_value": 0.22486991485335855
+        },
+        {
+          "field": "Debt/Equity",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.0,
+          "app_value": 0.0
+        },
+        {
+          "field": "OPM",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.2366472381821576,
+          "app_value": 0.2366472381821576
+        },
+        {
+          "field": "NPM",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.161270249528116,
+          "app_value": 0.161270249528116
+        },
+        {
+          "field": "Promoter %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 13.82,
+          "app_value": 13.82
+        },
+        {
+          "field": "FII %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 27.09,
+          "app_value": 27.09
+        },
+        {
+          "field": "DII %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 42.78,
+          "app_value": 42.78
+        },
+        {
+          "field": "Institutional %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 69.87,
+          "app_value": 69.87
+        },
+        {
+          "field": "Public %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 15.88,
+          "app_value": 15.88
+        },
+        {
+          "field": "FII/DII Split",
+          "status": "WARNING",
+          "detail": "FII + DII == Institutional_Pct; may be a split rather than independent data",
+          "reference_value": null,
+          "app_value": "FII=27.09, DII=42.78, INST=69.87"
+        },
+        {
+          "field": "Session VWAP",
+          "status": "PASS",
+          "detail": "Session VWAP = 1172.83, 73 bars",
+          "reference_value": null,
+          "app_value": 1172.83
+        }
+      ],
+      "passed": 19,
+      "failed": 0,
+      "no_data": 0
+    },
+    {
+      "symbol": "HDFCBANK.NS",
+      "checks": [
+        {
+          "field": "Company Name",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "HDFCBANK",
+          "app_value": "HDFCBANK"
+        },
+        {
+          "field": "Sector",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "Financial Services",
+          "app_value": "Financial Services"
+        },
+        {
+          "field": "Industry",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "Private Sector Bank",
+          "app_value": "Private Sector Bank"
+        },
+        {
+          "field": "Market Cap (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 1123335.9036416,
+          "app_value": 1123335.9036416
+        },
+        {
+          "field": "Revenue (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 90575.0,
+          "app_value": 90575.0
+        },
+        {
+          "field": "PAT (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 20383.0,
+          "app_value": 20383.0
+        },
+        {
+          "field": "EPS",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 12.5,
+          "app_value": 12.5
+        },
+        {
+          "field": "P/E Ratio",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 13.61,
+          "app_value": 13.61
+        },
+        {
+          "field": "ROE",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.3227507362954049,
+          "app_value": 0.3227507362954049
+        },
+        {
+          "field": "ROCE",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 5.316224355203117,
+          "app_value": 5.316224355203117
+        },
+        {
+          "field": "Debt/Equity",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 77.71543908541027,
+          "app_value": 77.71543908541027
+        },
+        {
+          "field": "OPM",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": -0.16938448799337566,
+          "app_value": -0.16938448799337566
+        },
+        {
+          "field": "NPM",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.22504002208114823,
+          "app_value": 0.22504002208114823
+        },
+        {
+          "field": "Promoter %",
+          "status": "N/A",
+          "detail": "Data not available from official source",
+          "reference_value": null,
+          "app_value": null
+        },
+        {
+          "field": "FII %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 41.82,
+          "app_value": 41.82
+        },
+        {
+          "field": "DII %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 41.75,
+          "app_value": 41.75
+        },
+        {
+          "field": "Institutional %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 83.57,
+          "app_value": 83.57
+        },
+        {
+          "field": "Public %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 16.27,
+          "app_value": 16.27
+        },
+        {
+          "field": "FII/DII Split",
+          "status": "WARNING",
+          "detail": "FII + DII == Institutional_Pct; may be a split rather than independent data",
+          "reference_value": null,
+          "app_value": "FII=41.82, DII=41.75, INST=83.57"
+        },
+        {
+          "field": "Session VWAP",
+          "status": "PASS",
+          "detail": "Session VWAP = 725.09, 73 bars",
+          "reference_value": null,
+          "app_value": 725.09
+        }
+      ],
+      "passed": 18,
+      "failed": 0,
+      "no_data": 1
+    },
+    {
+      "symbol": "SBIN.NS",
+      "checks": [
+        {
+          "field": "Company Name",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "SBIN",
+          "app_value": "SBIN"
+        },
+        {
+          "field": "Sector",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "Financial Services",
+          "app_value": "Financial Services"
+        },
+        {
+          "field": "Industry",
+          "status": "PASS",
+          "detail": "Values match (non-numeric)",
+          "reference_value": "Public Sector Bank",
+          "app_value": "Public Sector Bank"
+        },
+        {
+          "field": "Market Cap (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 998752.8065024,
+          "app_value": 998752.8065024
+        },
+        {
+          "field": "Revenue (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 136240.0,
+          "app_value": 136240.0
+        },
+        {
+          "field": "PAT (Cr)",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 25121.0,
+          "app_value": 25121.0
+        },
+        {
+          "field": "EPS",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 26.12,
+          "app_value": 26.12
+        },
+        {
+          "field": "P/E Ratio",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 11.14,
+          "app_value": 11.14
+        },
+        {
+          "field": "ROE",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.15565593476590578,
+          "app_value": 0.15565593476590578
+        },
+        {
+          "field": "ROCE",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.05933213045276452,
+          "app_value": 0.05933213045276452
+        },
+        {
+          "field": "Debt/Equity",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 51.56249888467544,
+          "app_value": 51.56249888467544
+        },
+        {
+          "field": "OPM",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": -0.08028479154433353,
+          "app_value": -0.08028479154433353
+        },
+        {
+          "field": "NPM",
+          "status": "PASS",
+          "detail": "Within 5% tolerance",
+          "reference_value": 0.18438784497944805,
+          "app_value": 0.18438784497944805
+        },
+        {
+          "field": "Promoter %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 55.47,
+          "app_value": 55.47
+        },
+        {
+          "field": "FII %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 10.81,
+          "app_value": 10.81
+        },
+        {
+          "field": "DII %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 26.52,
+          "app_value": 26.52
+        },
+        {
+          "field": "Institutional %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 37.33,
+          "app_value": 37.33
+        },
+        {
+          "field": "Public %",
+          "status": "PASS",
+          "detail": "Within 10% tolerance",
+          "reference_value": 7.06,
+          "app_value": 7.06
+        },
+        {
+          "field": "FII/DII Split",
+          "status": "WARNING",
+          "detail": "FII + DII == Institutional_Pct; may be a split rather than independent data",
+          "reference_value": null,
+          "app_value": "FII=10.81, DII=26.52, INST=37.33"
+        },
+        {
+          "field": "Session VWAP",
+          "status": "PASS",
+          "detail": "Session VWAP = 1079.74, 73 bars",
+          "reference_value": null,
+          "app_value": 1079.74
+        }
+      ],
+      "passed": 19,
+      "failed": 0,
+      "no_data": 0
+    }
+  ],
+  "summary": {
+    "total_passed": 94,
+    "total_failed": 0,
+    "total_na": 1
+  }
+}

@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Audit Reliance Valuation Module Script.
+"""Audit Reliance Valuation Module Script (Cross-Reference Only).
 
 Fetches exact raw inputs for RELIANCE.NS, verifies TTM EPS sum over last 4 quarters,
-computes P/E, PEG, EV/EBITDA, Market Cap, and compares against market data sources.
+computes P/E, PEG, EV/EBITDA, Market Cap, and compares official-calculated values
+against Yahoo Finance as a CROSS-REFERENCE ONLY.
+
+IMPORTANT: Production valuation calculations use ONLY NSE XBRL / company financial
+filings.  Yahoo Finance data here is for validation/cross-reference purposes only.
 """
 
 import sys

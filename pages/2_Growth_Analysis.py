@@ -1,9 +1,7 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px
 from data.fetch_prices import fetch_prices
 from data.fetch_fundamentals import fetch_fundamentals
 from data.fetch_utils import get_quarterly_df
@@ -44,8 +42,8 @@ if not fund:
     st.error("Unable to retrieve fundamentals for this ticker.")
     st.stop()
 
-sector = fund.get("Sector") or "Technology"
-industry = fund.get("Industry") or "IT - Software"
+sector = fund.get("Sector") or "N/A"
+industry = fund.get("Industry") or "N/A"
 
 st.subheader(f"{fund.get('Company') or symbol} — Growth Analysis")
 st.caption(f"Sector: {sector} | Industry: {industry}")
@@ -59,8 +57,7 @@ if not df_prices.empty:
     latest = df_prices.iloc[-1]
     tech_result = score_technical(latest)
 else:
-    tech_result = {"percentage": 50, "signal": "AVERAGE", "conditions": {}}
-
+    tech_result = {"percentage": 0, "signal": "NEUTRAL", "conditions": {}}
 is_bank = any(b.lower() in sector.lower() for b in {"Financial Services", "Banking", "Finance", "Insurance"})
 
 eps_g = fund.get("EPS_YoY") if fund.get("EPS_YoY") is not None else fund.get("EPS_QoQ")
@@ -79,21 +76,23 @@ fund_for_scoring = {
     "ROCE": roce,
     "ROA": roa,
     "Debt_Equity": de,
+    "Piotroski_FScore": fund.get("Piotroski_FScore"),
+    "Altman_ZScore": fund.get("Altman_ZScore"),
 }
 
 if is_bank:
     bank_data = {
-        "NIM": fund.get("NIM") or 0.035,
+        "NIM": fund.get("NIM"),
         "NII": fund.get("NII"),
-        "CASA_Ratio": fund.get("CASA_Ratio") or 0.40,
-        "GNPA": fund.get("GNPA") or 0.02,
-        "NNPA": fund.get("NNPA") or 0.005,
-        "PCR": fund.get("PCR") or 0.75,
-        "Advances_Growth": rev_g or 0.10,
-        "Deposits_Growth": rev_g or 0.10,
-        "CAR": fund.get("CAR") or 0.16,
-        "ROA": roa or 0.015,
-        "ROE": roe or 0.15,
+        "CASA_Ratio": fund.get("CASA_Ratio"),
+        "GNPA": fund.get("GNPA"),
+        "NNPA": fund.get("NNPA"),
+        "PCR": fund.get("PCR"),
+        "Advances_Growth": rev_g,
+        "Deposits_Growth": rev_g,
+        "CAR": fund.get("CAR"),
+        "ROA": roa,
+        "ROE": roe,
     }
     bs_res = score_banking(bank_data)
     fund_score_result = {"percentage": bs_res["percentage"], "signal": bs_res["signal"]}
@@ -108,8 +107,9 @@ combined = combined_score(
 
 high_52 = latest.get("52W_High") if not pd.isna(latest.get("52W_High")) else latest.get("High")
 close_price = latest.get("Close")
-price_strength = ((close_price / high_52) * 100) if (close_price and high_52 and high_52 != 0) else 85.0
-price_strength_pct = f"{price_strength:.0f}%"
+close_price = close_price if close_price is not None and not pd.isna(close_price) else None
+price_strength = ((close_price / high_52) * 100) if (close_price and high_52 and high_52 != 0) else 0.0
+price_strength_pct = f"{price_strength:.0f}%" if price_strength > 0 else "N/A"
 
 if eps_g is not None and not pd.isna(eps_g):
     eps_growth_str = f"{eps_g*100:.1f}%" if abs(eps_g) <= 1.0 else f"{eps_g:.1f}%"
@@ -118,8 +118,13 @@ else:
 
 vol = latest.get("Volume")
 vol_ma = latest.get("Volume_MA20")
-volume_ratio = (vol / vol_ma) if (vol and vol_ma and vol_ma > 0) else 1.1
-volume_demand = ("A+" if volume_ratio > 2 else "A" if volume_ratio > 1.5 else "B+" if volume_ratio > 1.2 else "B" if volume_ratio > 1.0 else "C")
+vol_v = safe_float(vol) if vol is not None else None
+vol_ma_v = safe_float(vol_ma) if vol_ma is not None else None
+volume_ratio = (vol_v / vol_ma_v) if (vol_v is not None and vol_v > 0 and vol_ma_v is not None and vol_ma_v > 0) else None
+if volume_ratio is not None:
+    volume_demand = ("A+" if volume_ratio > 2 else "A" if volume_ratio > 1.5 else "B+" if volume_ratio > 1.2 else "B" if volume_ratio > 1.0 else "C")
+else:
+    volume_demand = "N/A"
 
 c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
 with c1:
@@ -131,7 +136,7 @@ with c3:
 with c4:
     st.metric("EPS Growth", eps_growth_str, "Positive" if (isinstance(eps_g, (int, float)) and eps_g > 0) else "Neutral")
 with c5:
-    st.metric("Volume Demand", volume_demand, f"{volume_ratio:.1f}x")
+    st.metric("Volume Demand", volume_demand, f"{volume_ratio:.1f}x" if volume_ratio is not None else "")
 with c6:
     st.metric("Combined Score", f"{combined['combined_percentage']:.0f}/100", score_category(combined["combined_percentage"]))
 with c7:
@@ -173,16 +178,16 @@ add_row("ROCE", roce, 0.12, ">")
 add_row("ROA", roa, 0.03, ">")
 add_row("Debt/Equity", de, 2.0, "<")
 
-pat_val = fund.get("PAT") or 1000.0
-matrix_data.append({"Metric": "Operating Cash Flow", "Current": f"₹{pat_val:,.0f} Cr", "Score": "Pass", "Status": "Strong"})
+pat_val = fund.get("PAT")
+matrix_data.append({"Metric": "Operating Cash Flow", "Current": f"₹{pat_val:,.0f} Cr" if pat_val else "N/A", "Score": "N/A", "Status": "N/A"})
 
 pio = fund.get("Piotroski") or fund.get("piotroski_f_score")
-pio_str = f"{pio}/9" if isinstance(pio, (int, float)) and pio > 0 else "7/9"
-matrix_data.append({"Metric": "Piotroski F-Score", "Current": pio_str, "Score": "Pass", "Status": "Strong"})
+pio_str = f"{pio}/9" if isinstance(pio, (int, float)) and 0 <= pio <= 9 else "N/A"
+matrix_data.append({"Metric": "Piotroski F-Score", "Current": pio_str, "Score": "N/A", "Status": "N/A"})
 
 alt = fund.get("Altman") or fund.get("altman_z_score")
-alt_val = alt.get("value") if isinstance(alt, dict) else (alt if isinstance(alt, (int, float)) else 3.2)
-matrix_data.append({"Metric": "Altman Z-Score", "Current": f"{alt_val:.2f}" if isinstance(alt_val, (int, float)) else "3.20", "Score": "Pass", "Status": "Safe Zone"})
+alt_val = alt.get("value") if isinstance(alt, dict) else (alt if isinstance(alt, (int, float)) else None)
+matrix_data.append({"Metric": "Altman Z-Score", "Current": f"{alt_val:.2f}" if isinstance(alt_val, (int, float)) else "N/A", "Score": "N/A", "Status": "N/A"})
 
 matrix_df = pd.DataFrame(matrix_data)
 st.dataframe(matrix_df, use_container_width=True, hide_index=True)
@@ -254,11 +259,26 @@ st.divider()
 
 st.markdown("### Annual Growth Metrics (Last 3 Years)")
 
-ann_rows = [
-    {"Year": "FY2024", "Revenue (Cr)": f"₹{(fund.get('Revenue') or 50000.0):,.0f} Cr", "Revenue Growth YoY": fmt_pct(rev_g or 0.098), "PAT (Cr)": f"₹{(fund.get('PAT') or 12000.0):,.0f} Cr", "PAT Growth YoY": fmt_pct(pat_g or 0.106), "EPS": f"₹{(fund.get('EPS') or 110.0):.2f}", "EPS Growth YoY": fmt_pct(eps_g or 0.105)},
-    {"Year": "FY2023", "Revenue (Cr)": f"₹{(fund.get('Revenue') or 50000.0) * 0.90:,.0f} Cr", "Revenue Growth YoY": "+8.50%", "PAT (Cr)": f"₹{(fund.get('PAT') or 12000.0) * 0.89:,.0f} Cr", "PAT Growth YoY": "+9.10%", "EPS": f"₹{(fund.get('EPS') or 110.0) * 0.89:.2f}", "EPS Growth YoY": "+9.00%"},
-    {"Year": "FY2022", "Revenue (Cr)": f"₹{(fund.get('Revenue') or 50000.0) * 0.82:,.0f} Cr", "Revenue Growth YoY": "+12.10%", "PAT (Cr)": f"₹{(fund.get('PAT') or 12000.0) * 0.80:,.0f} Cr", "PAT Growth YoY": "+13.50%", "EPS": f"₹{(fund.get('EPS') or 110.0) * 0.80:.2f}", "EPS Growth YoY": "+13.20%"},
-]
+ann_rows = []
+rev_val = fund.get("Revenue")
+pat_val = fund.get("PAT")
+eps_val = fund.get("EPS")
+
+years = ["FY2024", "FY2023", "FY2022"]
+for i, yr in enumerate(years):
+    rev_growth = fmt_pct(rev_g) if (i == 0 and rev_g is not None) else "N/A"
+    pat_growth = fmt_pct(pat_g) if (i == 0 and pat_g is not None) else "N/A"
+    eps_growth = fmt_pct(eps_g) if (i == 0 and eps_g is not None) else "N/A"
+    ann_rows.append({
+        "Year": yr,
+        "Revenue (Cr)": f"₹{rev_val:,.0f} Cr" if rev_val else "N/A",
+        "Revenue Growth YoY": rev_growth,
+        "PAT (Cr)": f"₹{pat_val:,.0f} Cr" if pat_val else "N/A",
+        "PAT Growth YoY": pat_growth,
+        "EPS": f"₹{eps_val:.2f}" if eps_val else "N/A",
+        "EPS Growth YoY": eps_growth,
+    })
+
 adf_display = pd.DataFrame(ann_rows)
 st.dataframe(adf_display, use_container_width=True, hide_index=True)
 
@@ -296,10 +316,11 @@ for ps in peer_symbols:
         pass
 
 if not peer_growth:
-    peer_growth = {symbol: (eps_g * 100 if eps_g and abs(eps_g) <= 1.5 else 10.5)}
+    st.info("No peer growth data available for comparison.")
+    st.stop()
 
 median_growth = float(np.median(list(peer_growth.values())))
-comp_g_val = float(eps_g * 100 if eps_g and abs(eps_g) <= 1.5 else 10.5)
+comp_g_val = float(eps_g * 100 if eps_g and abs(eps_g) <= 1.5 else 0.0)
 
 c1, c2, c3 = st.columns(3)
 c1.metric("Company Growth YoY", f"{comp_g_val:.1f}%")

@@ -1,5 +1,4 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -48,7 +47,7 @@ if not fund:
     st.error("Unable to retrieve fundamentals for this ticker.")
     st.stop()
 
-sector = fund.get("Sector") or "Unknown"
+sector = fund.get("Sector") or "N/A"
 is_bank = any(b.lower() in sector.lower() for b in {"Financial Services", "Banking", "Finance", "Insurance"})
 
 st.subheader(f"{fund.get('Company') or symbol} — Quality Analysis")
@@ -58,31 +57,17 @@ st.divider()
 
 if is_bank:
     st.markdown("### Banking Quality Metrics")
-    bank_data = {
-        "NIM": fund.get("NIM"),
-        "NII": fund.get("NII"),
-        "CASA_Ratio": fund.get("CASA_Ratio"),
-        "GNPA": fund.get("GNPA"),
-        "NNPA": fund.get("NNPA"),
-        "PCR": fund.get("PCR"),
-        "Advances_Growth": fund.get("Advances_Growth"),
-        "Deposits_Growth": fund.get("Deposits_Growth"),
-        "CAR": fund.get("CAR"),
-        "ROA": fund.get("ROA"),
-        "ROE": fund.get("ROE"),
-    }
-    bmet = compute_banking_metrics(bank_data, {})
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("CASA Ratio", f"{bmet.get('CASA_Ratio', 0)*100:.1f}%" if bmet.get("CASA_Ratio") else "N/A")
-    c2.metric("NIM", f"{bmet.get('NIM', 0)*100:.2f}%" if bmet.get("NIM") else "N/A")
-    c3.metric("GNPA", f"{bmet.get('GNPA', 0)*100:.1f}%" if bmet.get("GNPA") else "N/A")
-    c4.metric("NNPA", f"{bmet.get('NNPA', 0)*100:.1f}%" if bmet.get("NNPA") else "N/A")
-    c5.metric("CAR", f"{bmet.get('CAR', 0)*100:.1f}%" if bmet.get("CAR") else "N/A")
+    c1.metric("CASA Ratio", f"{fund.get('CASA_Ratio', 0)*100:.1f}%" if fund.get("CASA_Ratio") else "N/A")
+    c2.metric("NIM", f"{fund.get('NIM', 0)*100:.2f}%" if fund.get("NIM") else "N/A")
+    c3.metric("GNPA", f"{fund.get('GNPA', 0)*100:.1f}%" if fund.get("GNPA") else "N/A")
+    c4.metric("NNPA", f"{fund.get('NNPA', 0)*100:.1f}%" if fund.get("NNPA") else "N/A")
+    c5.metric("CAR", f"{fund.get('CAR', 0)*100:.1f}%" if fund.get("CAR") else "N/A")
 
     c6, c7, c8 = st.columns(3)
-    c6.metric("NIIM", f"{bmet.get('NIIM', 0)*100:.2f}%" if bmet.get("NIIM") else "N/A")
-    c7.metric("PCR", f"{bmet.get('PCR', 0):.2f}" if bmet.get("PCR") else "N/A")
-    c8.metric("ROA", f"{bmet.get('ROA', 0)*100:.2f}%" if bmet.get("ROA") else "N/A")
+    c6.metric("NII", f"₹{fund.get('NII', 0)/1e3:.1f}Cr" if fund.get("NII") else "N/A")
+    c7.metric("PCR", f"{fund.get('PCR', 0):.2f}" if fund.get("PCR") else "N/A")
+    c8.metric("ROA", f"{fund.get('ROA', 0)*100:.2f}%" if fund.get("ROA") else "N/A")
 
     st.divider()
 

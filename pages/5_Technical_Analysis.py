@@ -1,5 +1,4 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -7,9 +6,11 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from data.fetch_prices import fetch_prices
 from data.fetch_fundamentals import fetch_fundamentals
+from data.fetch_utils import get_quarterly_df, quarterly_eps_series
 from scoring.technical_score import compute_technical_indicators, score_technical
 from patterns.patterns import swing_points, double_top, head_shoulders
 from fundamentals.ratios import safe_float
+from data.providers.nse_xbrl_provider import NSEXBRLProvider
 
 st.set_page_config(page_title="Technical Analysis", layout="wide")
 
@@ -267,6 +268,114 @@ with vol_col2:
 with vol_col3:
     avg_vol = df["Volume"].mean()
     st.metric("Average Volume", f"{avg_vol:,.0f}")
+
+st.divider()
+
+st.markdown("### Price Chart with EPS Markers")
+
+fund = fetch_fundamentals(symbol) or {}
+q_df = get_quarterly_df(fund)
+eps_series = quarterly_eps_series(fund)
+
+price_fig = go.Figure()
+price_fig.add_trace(go.Candlestick(
+    x=df["Date"],
+    open=df["Open"],
+    high=df["High"],
+    low=df["Low"],
+    close=df["Close"],
+    name="Price",
+    decreasing_line_color="#EF553B",
+    increasing_line_color="#00CC96",
+))
+
+if "MA50" in df.columns:
+    price_fig.add_trace(go.Scatter(x=df["Date"], y=df["MA50"], mode="lines", name="MA50", line=dict(color="orange", width=1)))
+if "MA200" in df.columns:
+    price_fig.add_trace(go.Scatter(x=df["Date"], y=df["MA200"], mode="lines", name="MA200", line=dict(color="blue", width=1)))
+
+show_log_scale = st.checkbox("Logarithmic Price Scale", value=False, key="log_scale")
+if show_log_scale:
+    price_fig.update_yaxes(type="log")
+
+if eps_series:
+    eps_dates = [d for d, _ in eps_series if d is not None]
+    eps_values = [v for _, v in eps_series if v is not None]
+    if eps_dates and eps_values:
+        marker_prices = []
+        for date in eps_dates:
+            try:
+                matches = df[df["Date"] == date]
+                if not matches.empty:
+                    marker_prices.append(float(matches.iloc[-1]["Close"]))
+                else:
+                    nearest_idx = (df["Date"] - date).abs().idxmin()
+                    marker_prices.append(float(df.loc[nearest_idx, "Close"]))
+            except Exception:
+                marker_prices.append(None)
+
+        valid = [(d, p, v) for d, p, v in zip(eps_dates, marker_prices, eps_values) if p is not None and v is not None]
+        if valid:
+            marker_dates = [d for d, _, _ in valid]
+            marker_prices_valid = [p for _, p, _ in valid]
+
+            for d, p, v in valid:
+                price_fig.add_annotation(
+                    x=d,
+                    y=p,
+                    text=f"₹{v:.2f}",
+                    showarrow=True,
+                    arrowhead=2,
+                    arrowsize=1,
+                    arrowwidth=1,
+                    arrowcolor="#FFA500",
+                    ax=0,
+                    ay=-40,
+                    font=dict(color="#FFA500", size=10),
+                    bgcolor="rgba(0,0,0,0.7)",
+                )
+
+            price_fig.add_trace(go.Scatter(
+                x=marker_dates,
+                y=marker_prices_valid,
+                mode="markers",
+                name="Quarterly EPS",
+                marker=dict(
+                    symbol="diamond",
+                    size=10,
+                    color="#FFA500",
+                    line=dict(color="white", width=1),
+                ),
+                text=[f"EPS: ₹{v:.2f}" for v in [v for _, _, v in valid]],
+                hovertemplate="<b>%{text}</b><br>Date: %{x}<extra></extra>",
+            ))
+
+            st.caption("Diamond markers on price chart show quarterly EPS values reported on each quarter's results date. India fiscal quarters: Q1 = Apr-Jun, Q2 = Jul-Sep, Q3 = Oct-Dec, Q4 = Jan-Mar.")
+
+price_fig.update_layout(
+    height=500,
+    xaxis_title="Date",
+    yaxis_title="Price (₹)",
+    template="plotly_dark",
+    xaxis_rangeslider_visible=False,
+    hovermode="x unified",
+)
+st.plotly_chart(price_fig, use_container_width=True)
+
+if q_df is not None and not q_df.empty:
+    st.markdown("#### Quarterly EPS History (NSE XBRL)")
+    eps_labels = ["Diluted EPS", "Basic EPS", "EPS"]
+    eps_row_label = find_eps_label(q_df)
+    if eps_row_label:
+        eps_dates_q = list(q_df.columns)
+        eps_vals_q = [safe_float(q_df.loc[eps_row_label, col]) for col in eps_dates_q]
+        eps_hist = pd.DataFrame({
+            "Quarter": [str(d)[:10] for d in eps_dates_q],
+            "EPS (₹)": eps_vals_q,
+        })
+        st.dataframe(eps_hist, use_container_width=True, hide_index=True)
+    else:
+        st.caption("EPS data not available in quarterly reports.")
 
 st.divider()
 

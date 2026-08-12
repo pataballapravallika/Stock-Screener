@@ -1,9 +1,9 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+from datetime import datetime
 from data.fetch_prices import fetch_prices
 from data.fetch_fundamentals import fetch_fundamentals
 from data.fetch_utils import get_quarterly_df
@@ -57,17 +57,19 @@ for company, symbol in COMPANIES.items():
         tech_result = score_technical(latest)
 
         fund = fetch_fundamentals(symbol) or {}
-        sector = fund.get("Sector") or "Unknown"
+        sector = fund.get("Sector") or "N/A"
         is_bank = any(b.lower() in sector.lower() for b in {"Financial Services", "Banking", "Finance", "Insurance"})
 
         fund_for_scoring = {
             "EPS_Growth": fund.get("EarningsGrowth"),
             "Revenue_Growth": fund.get("RevenueGrowth"),
-            "PAT_Growth": None,
+            "PAT_Growth": fund.get("PAT_YoY"),
             "ROE": fund.get("ROE"),
             "ROCE": fund.get("ROCE"),
             "ROA": fund.get("ROA"),
             "Debt_Equity": fund.get("DebtEquity"),
+            "Piotroski_FScore": fund.get("Piotroski_FScore"),
+            "Altman_ZScore": fund.get("Altman_ZScore"),
         }
 
         if is_bank:
@@ -123,8 +125,8 @@ for company, symbol in COMPANIES.items():
             "ROCE": fund.get("ROCE"),
             "ROA": fund.get("ROA"),
             "Debt/Equity": fund.get("DebtEquity"),
-            "Altman Z": fund.get("AltmanZScore"),
-            "Piotroski": fund.get("PiotroskiFScore"),
+            "Altman Z": (fund.get("AltmanZScore", {}).get("value") if isinstance(fund.get("AltmanZScore"), dict) else fund.get("AltmanZScore")),
+            "Piotroski": (fund.get("PiotroskiFScore")),
             "Promoter %": f"{fund.get('Promoter_Pct'):.2f}%" if fund.get("Promoter_Pct") is not None else "N/A",
             "Institutional %": f"{fund.get('Institutional_Pct'):.2f}%" if fund.get("Institutional_Pct") is not None else "N/A",
         })
@@ -252,29 +254,24 @@ def _extract_quarter_values(df, label):
         return []
     return [safe_float(df.loc[label, period]) for period in df.columns]
 
-def _parse_shareholding(ticker):
-    major = ticker.major_holders
+def _parse_shareholding(symbol: str):
+    """Parse shareholding from NSE official data instead of yfinance."""
     promoter_pct = None
     institutions_pct = None
-    if major is not None and not major.empty:
-        if "insidersPercentHeld" in major.index:
-            promoter_pct = safe_float(major.loc["insidersPercentHeld", "Value"])
-        if "institutionsPercentHeld" in major.index:
-            institutions_pct = safe_float(major.loc["institutionsPercentHeld", "Value"])
     inst_hist = []
     try:
-        inst_df = ticker.institutional_holders
-        if inst_df is not None and not inst_df.empty:
-            date_column = "Date Reported" if "Date Reported" in inst_df.columns else "Date"
-            pct_column = "pctHeld" if "pctHeld" in inst_df.columns else None
-            if pct_column is not None:
-                for _, row in inst_df.iterrows():
-                    date_value = row.get(date_column)
-                    pct_value = safe_float(row.get(pct_column))
-                    if date_value is not None and pct_value is not None:
-                        inst_hist.append((str(date_value), pct_value))
+        from data.fetch_fundamentals import fetch_fundamentals
+        fund = fetch_fundamentals(symbol)
+        if fund:
+            promoter_pct = fund.get("Promoter_Pct")
+            institutions_pct = fund.get("Institutional_Pct") or fund.get("InstitutionsPercentHeld")
     except Exception:
         pass
+
+    if institutions_pct is not None:
+        pct_val = safe_float(institutions_pct)
+        if pct_val is not None and pct_val > 0:
+            inst_hist.append((datetime.now().strftime("%Y-%m-%d"), pct_val))
     inst_hist = sorted(inst_hist, key=lambda x: x[0], reverse=True)[:3]
     return promoter_pct, institutions_pct, inst_hist
 
@@ -351,13 +348,26 @@ for name in selected_companies:
     results["NPM_YoY"] = yoy_growth(latest_npm, prior_npm) if latest_npm is not None and prior_npm is not None else None
     promoter_pct = fund.get("Promoter_Pct")
     institutions_pct = fund.get("Institutional_Pct")
-    sh_hist = fund.get("Shareholding_History") or []
+    sh_hist = fund.get("Shareholding_History")
     results["Promoter %"] = promoter_pct
     results["Institutional %"] = institutions_pct
-    results["Shareholding History"] = "; ".join([f"{date}: {pct:.2f}%" for date, pct in sh_hist]) if sh_hist else "N/A"
-    if len(sh_hist) >= 2:
-        results["Institutional_Change"] = round(sh_hist[0][1] - sh_hist[-1][1], 2)
+    if sh_hist and isinstance(sh_hist, dict) and sh_hist.get("periods"):
+        periods = sh_hist["periods"]
+        entries = []
+        for cat in ["Promoters", "FIIs", "DIIs"]:
+            vals = sh_hist.get(cat, [])
+            for i, p in enumerate(periods):
+                v = vals[i] if i < len(vals) else None
+                if v is not None:
+                    entries.append(f"{p} ({cat}): {v:.2f}%")
+        results["Shareholding History"] = "; ".join(entries) if entries else "N/A"
+        inst_vals = sh_hist.get("FIIs", [])
+        if len(inst_vals) >= 2:
+            results["Institutional_Change"] = round(inst_vals[0] - inst_vals[-1], 2)
+        else:
+            results["Institutional_Change"] = None
     else:
+        results["Shareholding History"] = "N/A"
         results["Institutional_Change"] = None
     results["Promoter_Change"] = None
     results["Shares Outstanding"] = fund.get("SharesOutstanding")

@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from typing import Optional, Tuple, List
 
+from data.database import get_latest_quarterly_reports
+
 
 def get_quarterly_df(fund: dict) -> Optional[pd.DataFrame]:
     """Return provider quarterly_financials DataFrame if valid, else None."""
