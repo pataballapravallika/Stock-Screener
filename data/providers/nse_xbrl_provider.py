@@ -177,9 +177,10 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         """
         for url in (self.NSE_BASE, f"{self.NSE_BASE}/market-data/live-equity-market"):
             try:
-                session.get(url, timeout=15)
+                session.get(url, timeout=10)
             except Exception:
                 pass
+            time.sleep(0.3)
 
     def _nse_get(self, endpoint: str, params: Optional[dict] = None, referer_path: str = "/"):
         session = self._get_session()
