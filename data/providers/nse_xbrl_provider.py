@@ -259,13 +259,12 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             shares = self._to_float(sec_details.get("issuedCap"))
 
         # If NSE quote API failed (e.g., 403 blocked), fall back to DB cache
-        # for market_cap and shares metadata.  These are quote-level metadata
-        # from the NSE quote API, not fundamental line items from filings.
-        if not mcap or not shares:
+        # ONLY for shares metadata (not market_cap, which must come from NSE
+        # quote API or be computed from price × shares).
+        if not shares:
             try:
                 cached = get_company_info(symbol)
                 if cached:
-                    mcap = mcap or cached.get("market_cap")
                     shares = shares or cached.get("shares_outstanding")
                     company_name = company_name or cached.get("company_name")
                     sector = sector or cached.get("sector")
@@ -672,17 +671,6 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         if not data or not isinstance(data, list):
             return []
 
-        # NSE corporate announcement items include an attchmntFile URL for
-        # the PDF attachment and, when hasXbrl is True, a companion XBRL XML.
-        xbrl_url_candidates = [
-            "https://nsearchives.nseindia.com/corporate/XBRL/{sym}_{dt}.xml",
-            "https://nsearchives.nseindia.com/corporate/XBRL/{sym}_{dt}.XML",
-            "https://nsearchives.nseindia.com/corporate/XBRL/{pdf_name}.xml",
-            "https://nsearchives.nseindia.com/corporate/XBRL/{pdf_name}.XML",
-            "https://nsearchives.nseindia.com/corporate/{pdf_name}.xml",
-            "https://nsearchives.nseindia.com/corporate/{pdf_name}.XML",
-        ]
-
         filings = []
         for item in data:
             if not isinstance(item, dict):
@@ -694,36 +682,42 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
             if (has_xbrl or is_financial) and not is_noise:
                 dt = item.get("dt", "")
-                pdf_url = item.get("attchmntFile", "")
-                pdf_name = pdf_url.split("/")[-1] if pdf_url else ""
-                # Remove .pdf extension to build XML name
-                xml_name = pdf_name.replace(".pdf", "") if pdf_name.lower().endswith(".pdf") else pdf_name
+                # The corporate-announcements API response may include a direct
+                # XBRL attachment URL in the 'xbrl' field, or the attchmntFile
+                # URL may itself be the XBRL XML (not just the PDF).
+                xbrl_url = item.get("xbrl", "") or item.get("xbrlAttachment", "") or item.get("xbrlFile", "")
+
+                if not xbrl_url:
+                    pdf_url = item.get("attchmntFile", "")
+                    if pdf_url:
+                        if pdf_url.lower().endswith(".xml"):
+                            xbrl_url = pdf_url
+                        elif pdf_url.lower().endswith(".pdf"):
+                            # Derive XBRL XML URL from the PDF attachment URL.
+                            # NSE stores XBRL XML alongside the PDF on nsearchives.
+                            xbrl_url = pdf_url[:-4] + ".xml"
+                            if not xbrl_url.startswith("http"):
+                                xbrl_url = "https://www.nseindia.com/" + xbrl_url
+                        elif "nsearchives" in pdf_url:
+                            xbrl_url = pdf_url
 
                 filing_dict = {
                     "symbol": clean,
                     "company_name": item.get("symbol", clean),
                     "period_end": dt,
                     "attchmntText": item.get("attchmntText"),
+                    "xbrl_url": xbrl_url,
                     "hasXbrl": has_xbrl,
                     "is_consolidated": "consolidated" in text or "consol" in text,
                 }
 
-                # Try each XBRL URL candidate
-                parsed = None
-                used_url = None
-                for tmpl in xbrl_url_candidates:
-                    candidate_url = tmpl.format(sym=clean, dt=dt, pdf_name=xml_name)
-                    xml_text = self._fetch_url_text(candidate_url)
+                if xbrl_url:
+                    xml_text = self._fetch_url_text(xbrl_url)
                     if xml_text:
-                        parsed = self._parse_xbrl_stdlib(xml_text, symbol, candidate_url)
+                        parsed = self._parse_xbrl_stdlib(xml_text, symbol, xbrl_url)
                         if parsed:
-                            used_url = candidate_url
-                            break
-
-                if parsed and used_url:
-                    filing_dict["xbrl_url"] = used_url
-                    filing_dict.update(parsed)
-                    filings.append(filing_dict)
+                            filing_dict.update(parsed)
+                            filings.append(filing_dict)
 
                 if len(filings) >= max_filings:
                     break
@@ -1165,14 +1159,9 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 shares_out = (float(share_cap) * 1e7) / float(face_val)
 
         mcap = info.get("market_cap")
-        if not mcap:
-            try:
-                from data.database import get_company_info as db_get_company_info
-                cached = db_get_company_info(symbol)
-                if cached and cached.get("market_cap"):
-                    mcap = float(cached["market_cap"])
-            except Exception:
-                pass
+        # Market cap comes ONLY from NSE quote API (in get_company_info).
+        # No DB cache fallback — stale cached values may originate from
+        # non-NSE providers.  The compliant fallback is price × shares below.
         # Fallback: Market Cap = Current Price × Shares Outstanding
         # Price: OHLCV only from price feed (yfinance download) — compliant
         # Shares: from official NSE XBRL filing (Equity Share Capital / Face Value) — compliant
