@@ -194,6 +194,29 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 if sh_json:
                     try:
                         sh_table = pd.DataFrame(_json.loads(sh_json))
+                        if sh_table is not None and not sh_table.empty and sh_table.shape[1] >= 2:
+                            hist_cols = [str(c) for c in sh_table.columns[1:]]
+                            history = {"periods": hist_cols}
+                            category_map = {
+                                "Promoters": "Promoter_Pct",
+                                "FIIs": "FII_Pct",
+                                "DIIs": "DII_Pct",
+                                "Government": "Govt_Pct",
+                                "Public": "Public_Pct",
+                            }
+                            for _, row in sh_table.iterrows():
+                                label_clean = re.sub(r'[^a-zA-Z]', '', str(row.iloc[0])).lower()
+                                for display_name in category_map:
+                                    if display_name.lower() in label_clean:
+                                        vals = []
+                                        for col in sh_table.columns[1:]:
+                                            v_str = str(row[col]).replace("%", "").strip()
+                                            try:
+                                                vals.append(float(v_str))
+                                            except (ValueError, TypeError):
+                                                vals.append(None)
+                                        history[display_name] = vals
+                                        break
                     except Exception:
                         pass
                 result.update({
@@ -886,7 +909,7 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 "debt": _extract_balance(balance_sheet, "Total Debt") or _extract_balance(balance_sheet, "Borrowings") if balance_sheet is not None else None,
                 "total_debt": _extract_balance(balance_sheet, "Total Debt") or _extract_balance(balance_sheet, "Borrowings") if balance_sheet is not None else None,
                 "share_capital": _extract_balance(balance_sheet, "Equity Capital") if balance_sheet is not None else None,
-                "face_value": 10,
+                "face_value": self._lookup_face_value(symbol),
                 "operating_cash_flow": _extract_cf(cashflow, "Operating Cash Flow") if cashflow is not None else None,
                 "capex": _extract_cf(cashflow, "Capital Expenditures") if cashflow is not None else None,
                 "depreciation_amortization": self._extract_latest_value(q_income, "depreciation_amortization", col),
@@ -951,7 +974,7 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 "debt": _extract_balance(balance_sheet, "Total Debt") or _extract_balance(balance_sheet, "Borrowings") if balance_sheet is not None else None,
                 "total_debt": _extract_balance(balance_sheet, "Total Debt") or _extract_balance(balance_sheet, "Borrowings") if balance_sheet is not None else None,
                 "share_capital": _extract_balance(balance_sheet, "Equity Capital") if balance_sheet is not None else None,
-                "face_value": 10,
+                "face_value": self._lookup_face_value(symbol),
                 "operating_cash_flow": _extract_cf(cashflow, "Operating Cash Flow") if cashflow is not None else None,
                 "capex": _extract_cf(cashflow, "Capital Expenditures") if cashflow is not None else None,
                 "depreciation_amortization": self._extract_latest_value(annual_income, "depreciation_amortization", col),
@@ -964,6 +987,28 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 record["working_capital"] = ca - cl
 
             save_fundamental_report(record)
+
+    def _lookup_face_value(self, symbol: str) -> Optional[float]:
+        """Look up face value from the database (populated by NSE XBRL filings).
+
+        Returns None when no NSE XBRL face value is on record so that callers
+        never fall back to a hard-coded default.
+        """
+        try:
+            from data.database import get_latest_annual_reports, get_latest_quarterly_reports
+            for df in (get_latest_annual_reports(symbol, limit=1), get_latest_quarterly_reports(symbol, limit=1)):
+                if not df.empty and "face_value" in df.columns:
+                    fv = df.iloc[0].get("face_value")
+                    if fv is not None:
+                        try:
+                            fv_f = float(fv)
+                            if fv_f > 0:
+                                return fv_f
+                        except (ValueError, TypeError):
+                            pass
+        except Exception:
+            pass
+        return None
 
     def build_fundamentals_dict(self, symbol: str) -> Dict[str, Any]:
         info = self.get_company_info(symbol)
@@ -1132,8 +1177,10 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "ROE": ratios_q.get("roe") or ratios_a.get("roe"),
             "ROCE": ratios_q.get("roce") or ratios_a.get("roce"),
             "ROA": ratios_q.get("roa") or ratios_a.get("roa"),
-            "RevenueGrowth": a_growth.get("revenue_growth"),
-            "EarningsGrowth": a_growth.get("eps_growth"),
+            "RevenueGrowth": a_growth.get("revenue_growth") or q_growth.get("sales_yoy"),
+            "Revenue_Growth": a_growth.get("revenue_growth") or q_growth.get("sales_yoy"),
+            "EarningsGrowth": a_growth.get("eps_growth") or q_growth.get("eps_yoy"),
+            "EPS_Growth": a_growth.get("eps_growth") or q_growth.get("eps_yoy"),
             "EarningsQuarterlyGrowth": q_growth.get("eps_yoy") or q_growth.get("eps_qoq"),
             "DebtEquity": ratios_q.get("debt_equity") or ratios_a.get("debt_equity"),
             "ProfitMargin": ratios_q.get("npm") or ratios_a.get("npm"),

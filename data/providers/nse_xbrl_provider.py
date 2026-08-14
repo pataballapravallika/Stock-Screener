@@ -28,7 +28,6 @@ import pandas as pd
 import requests
 
 from data.providers.base_provider import BaseFundamentalProvider, ReportIngestionMixin
-from data.providers.official_reports_provider import _ReportHelpers
 from data.parsers.xbrl_parser import XBRLParser
 from data.calculations.financial_calculator import FinancialCalculator
 from fundamentals.banking import compute_banking_metrics
@@ -41,7 +40,88 @@ from data.database import (
     get_latest_annual_reports,
     save_ttm_record,
     get_ttm_record,
+    purge_non_nse_reports,
 )
+
+
+class _ReportHelpers:
+    """Self-contained reporting period helpers (no third-party dependencies)."""
+
+    @staticmethod
+    def normalize_period(period_str: str) -> Optional[str]:
+        if period_str is None:
+            return None
+        s = str(period_str).strip()
+        if not s:
+            return None
+        try:
+            dt = pd.to_datetime(s)
+            end_dt = dt + pd.offsets.MonthEnd(0)
+            return end_dt.strftime("%Y-%m-%d")
+        except Exception:
+            return s
+
+    @staticmethod
+    def derive_quarter(period_str: str) -> Optional[int]:
+        s = _ReportHelpers.normalize_period(period_str)
+        if s is None:
+            return None
+        try:
+            dt = pd.to_datetime(s)
+            month = dt.month
+            if 4 <= month <= 6:
+                return 1
+            elif 7 <= month <= 9:
+                return 2
+            elif 10 <= month <= 12:
+                return 3
+            else:
+                return 4
+        except Exception:
+            return None
+
+    @staticmethod
+    def derive_financial_year(period_str: str, quarter: Optional[int] = None) -> Optional[int]:
+        s = str(period_str).strip() if period_str else ""
+        if not s:
+            return None
+        m = re.match(r'^[Ff][Yy]\s*(\d{2,4})$', s)
+        if m:
+            yr = int(m.group(1))
+            if yr < 100:
+                yr += 2000
+            return yr
+        try:
+            dt = pd.to_datetime(s)
+            month = dt.month
+            if month >= 4:
+                return dt.year + 1
+            else:
+                return dt.year
+        except Exception:
+            return None
+
+    @staticmethod
+    def derive_annual_financial_year(period_str: str) -> Optional[int]:
+        s = str(period_str).strip() if period_str else ""
+        if not s:
+            return None
+        m = re.match(r'^[Ff][Yy]\s*(\d{2,4})$', s)
+        if m:
+            yr = int(m.group(1))
+            if yr < 100:
+                yr += 2000
+            return yr
+        m2 = re.match(r'^[A-Za-z]{3,}\s+(\d{4})$', s)
+        if m2:
+            return int(m2.group(1))
+        try:
+            yr = int(s.strip())
+            if yr < 100:
+                yr += 2000
+            return yr
+        except (ValueError, TypeError):
+            return None
 
 
 class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
@@ -69,6 +149,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         self.calculator = FinancialCalculator()
         self._session = None
         self._issuer_map = {}
+        self._nse_purged = False
 
     def _get_session(self):
         if self._session is None:
@@ -90,15 +171,19 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
         for attempt in range(2):
             try:
-                resp = session.get(url, params=params, headers=headers, timeout=25)
-                if resp.status_code in (401, 403, 500):
-                    session.get(self.NSE_BASE, timeout=15)
+                resp = session.get(url, params=params, headers=headers, timeout=10)
+                if resp.status_code in (401, 403):
+                    # NSE actively blocking — session needs a new cookie
+                    session.get(self.NSE_BASE, timeout=10)
+                    continue
+                if resp.status_code == 500:
+                    session.get(self.NSE_BASE, timeout=10)
                     continue
                 resp.raise_for_status()
                 return resp.json()
             except Exception:
                 if attempt < 1:
-                    time.sleep(1.5)
+                    time.sleep(0.5)
         return None
 
     def _nse_get_html(self, path: str, params: Optional[dict] = None) -> Optional[str]:
@@ -130,8 +215,21 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 "Institutional_Pct": cached.get("institutional_pct"),
                 "Shareholders_Count": cached.get("shareholders_count"),
                 "Shareholding_Period": cached.get("shareholding_period"),
+                "Shareholding_Table": None,
                 "Shareholding_History": None,
             }
+
+            sh_json = cached.get("shareholding_json")
+            if sh_json:
+                try:
+                    import json as _json
+                    table_df = pd.DataFrame(_json.loads(sh_json))
+                    result["Shareholding_Table"] = table_df
+                    if not table_df.empty and table_df.shape[1] >= 2:
+                        result["Shareholding_History"] = self._build_history_from_table(table_df)
+                except Exception:
+                    pass
+
             return result
 
         clean = self._ticker_to_slug(symbol)
@@ -160,21 +258,23 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
             shares = self._to_float(sec_details.get("issuedCap"))
 
-        # Fallback for sector, industry, marketCap if missing from NSE quote endpoint
-        if not sector or not industry or not mcap or not shares:
+        # If NSE quote API failed (e.g., 403 blocked), fall back to DB cache
+        # for market_cap and shares metadata.  These are quote-level metadata
+        # from the NSE quote API, not fundamental line items from filings.
+        if not mcap or not shares:
             try:
-                from data.providers.official_reports_provider import OfficialReportsProvider
-                off_info = OfficialReportsProvider().get_company_info(symbol)
-                if off_info:
-                    company_name = company_name or off_info.get("company_name")
-                    sector = sector or off_info.get("sector")
-                    industry = industry or off_info.get("industry")
-                    mcap = mcap or off_info.get("market_cap")
-                    shares = shares or off_info.get("sharesOutstanding")
+                cached = get_company_info(symbol)
+                if cached:
+                    mcap = mcap or cached.get("market_cap")
+                    shares = shares or cached.get("shares_outstanding")
+                    company_name = company_name or cached.get("company_name")
+                    sector = sector or cached.get("sector")
+                    industry = industry or cached.get("industry")
             except Exception:
                 pass
 
         # Last resort: derive shares from XBRL filing data (Equity Share Capital / Face Value)
+        # This is the only acceptable fallback for shares — it comes from official NSE XBRL filings.
         if not shares:
             try:
                 a_df = get_latest_annual_reports(symbol, limit=1)
@@ -187,8 +287,9 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 pass
 
         if not sector or sector == "Unknown":
-            from data.sector_data import get_standard_sector
-            sector = get_standard_sector(symbol)
+            sector = "N/A"
+        if not industry or industry == "Unknown":
+            industry = "N/A"
 
         sector = sector or "N/A"
         industry = industry or "N/A"
@@ -236,10 +337,9 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
     def get_shareholding(self, symbol: str) -> Dict[str, Any]:
         """Fetch official shareholding pattern from NSE's shareholder disclosures.
 
-        Primary source is screener.in's official NSE shareholder-pattern
-        disclosures (quarterly SHP tables).  NSE's own API endpoint
-        (/api/shareholder-patterns) is attempted first; if it returns 404/403
-        the method falls back to screener.in HTML parsing.
+        Source is the NSE shareholder-patterns API endpoint
+        (/api/shareholder-patterns).  If it returns 404/403, no fallback
+        is used — values remain None so N/A is displayed in the UI.
 
         Returns a dict with:
             - Promoter_Pct
@@ -304,7 +404,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
                 return sh_dict
 
-        # Primary: NSE shareholder-patterns API (may return 404 — fall through to screener.in)
+        # Official NSE shareholder-patterns API for shareholding data
         endpoint = f"/api/shareholder-patterns?symbol={clean}"
         data = self._nse_get(endpoint, referer_path=f"/report-widgets/shareholder-patterns?symbol={clean}")
 
@@ -314,19 +414,8 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             except Exception:
                 pass
 
-        # Fallback: screener.in shareholding data (parsed from HTML tab content)
-        # screener.in renders the official NSE quarterly shareholder-pattern
-        # disclosures in an HTML table (the "quarterly-shp" tab).
-        if not sh_dict["Promoter_Pct"]:
-            try:
-                from data.providers.official_reports_provider import OfficialReportsProvider
-                off = OfficialReportsProvider()
-                slug = off._ticker_to_slug(symbol)
-                html = off._get(f"{off.BASE_URL}/company/{slug}/consolidated/") or off._get(f"{off.BASE_URL}/company/{slug}/")
-                if html:
-                    sh_dict = self._parse_screener_shareholding(html, sh_dict)
-            except Exception:
-                pass
+        # Shareholding data comes ONLY from official NSE shareholder-patterns API.
+        # No third-party (screener.in) fallbacks are used for ownership data.
 
         # Compute Institutional_Pct = FII + DII only if both are present
         fii = sh_dict["FII_Pct"]
@@ -345,7 +434,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 sh_json = None
                 if sh_dict.get("Shareholding_Table") is not None:
                     import json as _json
-                    sh_json = _json.dumps(sh_dict["Shareholding_Table"].to_dict(), default=str)
+                    sh_json = _json.dumps(sh_dict["Shareholding_Table"].to_dict(orient="list"), default=str)
                 save_company_info(
                     ticker=symbol,
                     promoter_pct=sh_dict.get("Promoter_Pct"),
@@ -364,127 +453,12 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         return sh_dict
 
     def _parse_screener_shareholding(self, html: str, sh_dict: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse shareholding pattern from screener.in HTML.
+        """Parse shareholding pattern from screener.in HTML — DISABLED.
 
-        screener.in renders shareholding data in an HTML table with rows like:
-          <tr>
-            <td><button ...>Promoters</button></td>
-            <td>50.27%</td> <td>50.30%</td> ...
-          </tr>
-          <tr>
-            <td><button ...>FIIs</button></td>
-            <td>22.60%</td> ...
-          </tr>
-          <tr>
-            <td>No. of Shareholders</td>
-            <td>3698648</td> ...
-          </tr>
+        Shareholding data is sourced exclusively from official NSE
+        shareholder-pattern filings.  This method is retained only for
+        backward compatibility but returns the unchanged sh_dict.
         """
-        from io import StringIO
-
-        # Find the shareholding pattern table section
-        shp_start = html.find("quarterly-shp")
-        if shp_start < 0:
-            shp_start = html.find("Shareholding Pattern")
-        if shp_start < 0:
-            shp_start = html.find("shareholding")
-
-        # Try pd.read_html on the entire HTML to find the shareholding table
-        sh_table = None
-        try:
-            tables = pd.read_html(StringIO(html))
-            for table in tables:
-                if table.empty or table.shape[1] < 2:
-                    continue
-                txt = " ".join(str(v) for v in table.iloc[:, 0].values)
-                if any(kw in txt.lower() for kw in ["promoter", "fii", "dii", "government", "public"]):
-                    sh_table = table
-                    sh_dict = self._parse_shareholding_table(table, sh_dict)
-                    break
-        except Exception:
-            pass
-
-        # Populate Shareholding_Table and Shareholding_History from the parsed table
-        if sh_table is not None and not sh_table.empty:
-            sh_dict["Shareholding_Table"] = sh_table.copy()
-
-            # Build historical time-series for each category
-            history = {"periods": [str(c) for c in sh_table.columns[1:]]}
-            category_map = {
-                "Promoters": "Promoter_Pct",
-                "FIIs": "FII_Pct",
-                "DIIs": "DII_Pct",
-                "Government": "Govt_Pct",
-                "Public": "Public_Pct",
-            }
-            for _, row in sh_table.iterrows():
-                label_raw = str(row.iloc[0]).lower().strip()
-                label_clean = re.sub(r'[^a-zA-Z]', '', label_raw)
-                for display_name, dict_key in category_map.items():
-                    if display_name.lower() in label_clean:
-                        vals = []
-                        for col in sh_table.columns[1:]:
-                            v_str = str(row[col]).replace("%", "").strip()
-                            try:
-                                vals.append(float(v_str))
-                            except (ValueError, TypeError):
-                                vals.append(None)
-                        history[display_name] = vals
-                        break
-            sh_dict["Shareholding_History"] = history
-
-        # Fallback: regex extraction from HTML (if table parsing failed)
-        if sh_dict.get("Promoter_Pct") is None or sh_dict.get("FII_Pct") is None:
-            # Fallback: regex extraction from HTML
-            try:
-                label_patterns = {
-                    "Promoter_Pct": r'>\s*Promoters?\s*<[^>]*>.*?<td[^>]*>\s*([\d.]+)\s*%',
-                    "FII_Pct": r'>\s*FIIs?\s*<[^>]*>.*?<td[^>]*>\s*([\d.]+)\s*%',
-                    "DII_Pct": r'>\s*DIIs?\s*<[^>]*>.*?<td[^>]*>\s*([\d.]+)\s*%',
-                    "Govt_Pct": r'>\s*Government\s*<[^>]*>.*?<td[^>]*>\s*([\d.]+)\s*%',
-                    "Public_Pct": r'>\s*Public\s*<[^>]*>.*?<td[^>]*>\s*([\d.]+)\s*%',
-                }
-                for key, pattern in label_patterns.items():
-                    if sh_dict.get(key) is None:
-                        match = re.search(pattern, html, re.DOTALL | re.IGNORECASE)
-                        if match:
-                            try:
-                                val = float(match.group(1))
-                                if 0 < val < 100:
-                                    sh_dict[key] = val
-                            except (ValueError, TypeError):
-                                pass
-            except Exception:
-                pass
-
-        pm_match = re.search(r'Promoter Holding:\s*([\d.]+)', html, re.IGNORECASE)
-        if pm_match and sh_dict["Promoter_Pct"] is None:
-            try:
-                sh_dict["Promoter_Pct"] = float(pm_match.group(1))
-            except (ValueError, TypeError):
-                pass
-
-        sh_count_match = re.search(r'No\.\s*of\s*Shareholders[:\s]+([\d,]+)', html, re.IGNORECASE)
-        if sh_count_match and sh_dict["Shareholders_Count"] is None:
-            try:
-                sh_dict["Shareholders_Count"] = int(sh_count_match.group(1).replace(",", ""))
-            except (ValueError, TypeError):
-                pass
-
-        # If still missing, try to parse from the shareholding table row
-        if sh_dict["Shareholders_Count"] is None and sh_dict.get("Shareholding_Table") is not None:
-            sh_table = sh_dict["Shareholding_Table"]
-            latest_col = sh_table.columns[-1] if len(sh_table.columns) > 1 else None
-            for _, row in sh_table.iterrows():
-                label_clean = re.sub(r'[^a-zA-Z]', '', str(row.iloc[0]).lower().strip())
-                if "shareholder" in label_clean:
-                    v_str = str(row.iloc[-1]).replace(",", "").strip()
-                    try:
-                        sh_dict["Shareholders_Count"] = int(float(v_str))
-                    except (ValueError, TypeError):
-                        pass
-                    break
-
         return sh_dict
 
     def _build_history_from_table(self, table: pd.DataFrame) -> Optional[Dict[str, Any]]:
@@ -698,6 +672,17 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         if not data or not isinstance(data, list):
             return []
 
+        # NSE corporate announcement items include an attchmntFile URL for
+        # the PDF attachment and, when hasXbrl is True, a companion XBRL XML.
+        xbrl_url_candidates = [
+            "https://nsearchives.nseindia.com/corporate/XBRL/{sym}_{dt}.xml",
+            "https://nsearchives.nseindia.com/corporate/XBRL/{sym}_{dt}.XML",
+            "https://nsearchives.nseindia.com/corporate/XBRL/{pdf_name}.xml",
+            "https://nsearchives.nseindia.com/corporate/XBRL/{pdf_name}.XML",
+            "https://nsearchives.nseindia.com/corporate/{pdf_name}.xml",
+            "https://nsearchives.nseindia.com/corporate/{pdf_name}.XML",
+        ]
+
         filings = []
         for item in data:
             if not isinstance(item, dict):
@@ -711,20 +696,32 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 dt = item.get("dt", "")
                 pdf_url = item.get("attchmntFile", "")
                 pdf_name = pdf_url.split("/")[-1] if pdf_url else ""
-                xbrl_url = f"https://nsearchives.nseindia.com/corporate/XBRL/{clean}_{dt}.xml"
+                # Remove .pdf extension to build XML name
+                xml_name = pdf_name.replace(".pdf", "") if pdf_name.lower().endswith(".pdf") else pdf_name
 
                 filing_dict = {
                     "symbol": clean,
                     "company_name": item.get("symbol", clean),
                     "period_end": dt,
                     "attchmntText": item.get("attchmntText"),
-                    "xbrl_url": xbrl_url,
                     "hasXbrl": has_xbrl,
                     "is_consolidated": "consolidated" in text or "consol" in text,
                 }
-                xml_text = self._fetch_url_text(xbrl_url)
-                if xml_text:
-                    parsed = self._parse_xbrl_stdlib(xml_text, symbol, xbrl_url)
+
+                # Try each XBRL URL candidate
+                parsed = None
+                used_url = None
+                for tmpl in xbrl_url_candidates:
+                    candidate_url = tmpl.format(sym=clean, dt=dt, pdf_name=xml_name)
+                    xml_text = self._fetch_url_text(candidate_url)
+                    if xml_text:
+                        parsed = self._parse_xbrl_stdlib(xml_text, symbol, candidate_url)
+                        if parsed:
+                            used_url = candidate_url
+                            break
+
+                if parsed and used_url:
+                    filing_dict["xbrl_url"] = used_url
                     filing_dict.update(parsed)
                     filings.append(filing_dict)
 
@@ -768,13 +765,18 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
     @staticmethod
     def _to_crores(val: Optional[float], is_eps: bool = False) -> Optional[float]:
+        """Convert raw rupee values to INR crores (divide by 10^7).
+
+        EPS is not converted (it is already per-share in rupees).
+        NSE XBRL reports monetary amounts in the entity's functional
+        currency (INR) as absolute rupee values, so we divide by
+        1,00,00,000 to express in crores.
+        """
         if val is None:
             return None
         if is_eps:
             return val
-        if abs(val) >= 1000000:
-            return val / 10000000.0
-        return val
+        return val / 10000000.0
 
     def _parse_xbrl_stdlib(self, xml_text: str, symbol: str, xbrl_url: str) -> Dict[str, Any]:
         try:
@@ -790,18 +792,23 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             if val:
                 data_map[tag.lower()] = val
 
-        def _get(key_list: List[str], is_eps: bool = False) -> Optional[float]:
+        def _get(key_list: List[str]) -> Optional[float]:
+            """Extract a raw value (in rupees) from the XBRL data map.
+
+            Does NOT convert to crores — the caller (_store_filing) handles
+            unit normalization so conversion happens exactly once.
+            """
             for k in key_list:
                 for map_k, map_v in data_map.items():
                     if k.lower() in map_k.lower():
                         flt = self._to_float(map_v)
                         if flt is not None:
-                            return self._to_crores(flt, is_eps=is_eps)
+                            return flt
             return None
 
         revenue = _get(["RevenueFromOperations", "IncomeFromOperations", "TotalRevenue", "Income", "Revenue"])
         pat = _get(["ProfitLossForPeriod", "ProfitAfterTax", "NetProfit", "ProfitLossFromOrdinaryActivitiesAfterTax"])
-        eps = _get(["DilutedEarningsLossPerShare", "BasicEarningsLossPerShare", "DilutedEPS", "BasicEPS", "EPS"], is_eps=True)
+        eps = _get(["DilutedEarningsLossPerShare", "BasicEarningsLossPerShare", "DilutedEPS", "BasicEPS", "EPS"])
         ebit = _get(["ProfitBeforeTax", "ProfitLossBeforeTax", "EBIT"])
         total_assets = _get(["TotalAssets", "Assets"])
         equity = _get(["TotalEquity", "Equity", "PaidUpEquityShareCapital", "ShareCapital"])
@@ -836,10 +843,9 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         face_value = _get(["FaceValueOfEquityShareCapital", "facevalueofequitysharecapital"])
         shares_out = None
         if share_capital is not None and face_value is not None and face_value > 0:
-            # share_capital is in crores (already converted), face_value is per share in rupees
-            # shares_out (in crores) = share_capital / face_value
-            shares_out_crores = share_capital / face_value
-            shares_out = shares_out_crores * 1e7  # convert to absolute count
+            # share_capital is in raw rupees, face_value is per share in rupees
+            # shares_out = share_capital (rupees) / face_value (rupees/share)
+            shares_out = share_capital / face_value
 
         # Banking-specific XBRL fields
         interest_income = _get(["InterestIncomeFromBankingActivities", "InterestIncome"])
@@ -969,7 +975,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             current_assets=c_assets,
             current_liabilities=c_liab,
             working_capital=(c_assets - c_liab) if c_assets and c_liab else None,
-            debt=dent_val,
+            debt=debt_val,
             operating_cash_flow=ocf,
             capex=capex,
             gross_profit=gross_profit,
@@ -1056,10 +1062,19 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         return "nse_xbrl"
 
     def ensure_data(self, symbol: str):
+        # Purge any stale non-NSE-sourced data so we never serve
+        # screener.in or yfinance fallback data as official NSE data.
+        # Only runs once per session (subsequent calls are no-ops since
+        # NSE-sourced data is preserved by the filter).
+        if not self._nse_purged:
+            purge_non_nse_reports()
+            self._nse_purged = True
         q_df = get_latest_quarterly_reports(symbol, limit=1)
         a_df = get_latest_annual_reports(symbol, limit=1)
         if q_df.empty or a_df.empty:
             self.ingest_from_nse(symbol)
+        # Data comes ONLY from NSE official XBRL filings.
+        # No third-party (screener.in) fallback is used for fundamental data.
 
     def _reports_to_income_df(self, reports: pd.DataFrame) -> pd.DataFrame:
         if reports.empty:
@@ -1152,17 +1167,25 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         mcap = info.get("market_cap")
         if not mcap:
             try:
-                from data.providers.official_reports_provider import OfficialReportsProvider
-                off_info = OfficialReportsProvider().get_company_info(symbol)
-                mcap = off_info.get("market_cap")
+                from data.database import get_company_info as db_get_company_info
+                cached = db_get_company_info(symbol)
+                if cached and cached.get("market_cap"):
+                    mcap = float(cached["market_cap"])
             except Exception:
                 pass
-        if not mcap:
+        # Fallback: Market Cap = Current Price × Shares Outstanding
+        # Price: OHLCV only from price feed (yfinance download) — compliant
+        # Shares: from official NSE XBRL filing (Equity Share Capital / Face Value) — compliant
+        if not mcap and shares_out and shares_out > 0:
             try:
-                from data.providers.yahoo_price_provider import YahooPriceProvider
-                price_info = YahooPriceProvider().get_company_info(symbol)
-                if price_info and price_info.get("current_price") and shares_out:
-                    mcap = price_info["current_price"] * shares_out / 1e7
+                from data.fetch_prices import fetch_prices
+                prices = fetch_prices(symbol, period="5d")
+                if not prices.empty and "Close" in prices.columns:
+                    prices = prices.dropna(subset=["Close"])
+                    if not prices.empty:
+                        current_price = float(prices["Close"].iloc[-1])
+                        if current_price > 0:
+                            mcap = round((current_price * shares_out) / 1e7, 2)
             except Exception:
                 pass
 
@@ -1175,26 +1198,29 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         eps_g = q_growth.get("eps_qoq") or a_growth.get("eps_yoy")
         peg = self.calculator.compute_peg(ratios.get("pe"), eps_g)
 
-        # Compute TTM EPS and TTM PAT for accurate P/E (sum of last 4 distinct quarters)
+        # Compute TTM EPS and TTM PAT for accurate P/E (sum of 4 distinct quarterly filings)
         ttm_eps = None
         ttm_pat = None
-        if q_list and len(q_list) >= 4:
+        if q_list:
             eps_vals = []
             pat_vals = []
             seen_periods = set()
-            for rec in q_list[:4]:
-                period_key = rec.get("report_date") or rec.get("quarter_or_year")
-                if period_key and period_key not in seen_periods:
-                    seen_periods.add(period_key)
-                    v_eps = rec.get("eps")
-                    if v_eps is not None and not (isinstance(v_eps, float) and v_eps != v_eps):
-                        eps_vals.append(float(v_eps))
-                    v_pat = rec.get("pat")
-                    if v_pat is not None and not (isinstance(v_pat, float) and v_pat != v_pat):
-                        pat_vals.append(float(v_pat))
-            if len(eps_vals) > 0:
+            # Deduplicate by report_date to ensure 4 DISTINCT quarterly filings
+            for rec in q_list[:8]:
+                period_key = str(rec.get("report_date", ""))
+                if not period_key or period_key in seen_periods:
+                    continue
+                seen_periods.add(period_key)
+                v_eps = rec.get("eps")
+                if v_eps is not None and not (isinstance(v_eps, float) and v_eps != v_eps):
+                    eps_vals.append(float(v_eps))
+                v_pat = rec.get("pat")
+                if v_pat is not None and not (isinstance(v_pat, float) and v_pat != v_pat):
+                    pat_vals.append(float(v_pat))
+            # Only compute TTM if we have 4 distinct quarterly filings
+            if len(eps_vals) >= 4:
                 ttm_eps = sum(eps_vals[:4])
-            if len(pat_vals) > 0:
+            if len(pat_vals) >= 4:
                 ttm_pat = sum(pat_vals[:4])
 
         # Compute PE = MarketCap (Cr) / TTM PAT (Cr) — both in crores
@@ -1331,11 +1357,11 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "ROE": ratios.get("roe"),
             "ROCE": ratios.get("roce"),
             "ROA": ratios.get("roa"),
-            "RevenueGrowth": a_growth.get("revenue_growth"),
-            "Revenue_Growth": a_growth.get("revenue_growth"),
-            "EarningsGrowth": a_growth.get("eps_growth"),
-            "EPS_Growth": a_growth.get("eps_growth"),
-            "PAT_Growth": a_growth.get("pat_growth"),
+            "RevenueGrowth": a_growth.get("revenue_growth") or q_growth.get("sales_yoy"),
+            "Revenue_Growth": a_growth.get("revenue_growth") or q_growth.get("sales_yoy"),
+            "EarningsGrowth": a_growth.get("eps_growth") or q_growth.get("eps_yoy"),
+            "EPS_Growth": a_growth.get("eps_growth") or q_growth.get("eps_yoy"),
+            "PAT_Growth": a_growth.get("pat_growth") or q_growth.get("pat_yoy"),
             "EarningsQuarterlyGrowth": q_growth.get("eps_yoy") or q_growth.get("eps_qoq"),
             "DebtEquity": ratios.get("debt_equity"),
             "Debt_Equity": ratios.get("debt_equity"),

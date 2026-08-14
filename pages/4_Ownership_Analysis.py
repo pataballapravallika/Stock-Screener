@@ -4,7 +4,6 @@ import re
 import plotly.graph_objects as go
 import plotly.express as px
 from data.fetch_fundamentals import fetch_fundamentals
-from data.providers.yahoo_price_provider import YahooPriceProvider
 
 st.set_page_config(page_title="Ownership Analysis", layout="wide")
 
@@ -250,60 +249,16 @@ st.divider()
 
 # ── Institutional & Mutual Fund Holders ───────────────────────────────────────
 st.markdown("### Institutional & Mutual Fund Holders")
-price_provider = YahooPriceProvider()
-
-inst_holders = price_provider.get_institutional_holders(symbol)
-if inst_holders is not None and not inst_holders.empty:
-    display_cols = list(inst_holders.columns)
-    if "Date Reported" in display_cols:
-        display_cols.remove("Date Reported")
-    st.dataframe(inst_holders[display_cols], use_container_width=True, hide_index=True)
-else:
-    st.info("Institutional holder details unavailable. Official filings (Form 13F for FIIs) are not yet parsed; shareholding data comes from NSE shareholder-pattern disclosures above.")
-
-mf_holders = price_provider.get_mutual_fund_holders(symbol)
-if mf_holders is not None and not mf_holders.empty:
-    st.markdown("#### Top Mutual Fund Holders")
-    display_cols = list(mf_holders.columns)
-    if "Date Reported" in display_cols:
-        display_cols.remove("Date Reported")
-    st.dataframe(mf_holders[display_cols], use_container_width=True, hide_index=True)
-else:
-    st.info("Mutual fund holder details unavailable. MFs typically report via NSE quarterly shareholding patterns where they appear under the 'Public' or 'FIIs' category.")
+st.info("Detailed institutional / mutual-fund holder listings are not available from official NSE shareholder-pattern filings. Official quarterly shareholding percentages for Promoters, FIIs, DIIs, Government, and Public are shown above.")
 
 st.divider()
 
 # ── Insider Trading ───────────────────────────────────────────────────────────
 st.markdown("### Insider Trading")
-insider_txns = price_provider.get_insider_transactions(symbol)
-if insider_txns is not None and not insider_txns.empty:
-    display_cols = list(insider_txns.columns)
-    if "Date" in display_cols:
-        display_cols.remove("Date")
-    st.dataframe(insider_txns[display_cols], use_container_width=True, hide_index=True)
-else:
-    st.info("Insider trading details unavailable. Indian promoters report shareholding changes through NSE shareholder-pattern filings (quarterly SHP), reflected in the shareholding breakdown above.")
-
-insider_roster = price_provider.get_insider_roster(symbol)
-if insider_roster is not None and not insider_roster.empty:
-    st.write("")
-    st.markdown("#### Insider Roster (Officers & Directors)")
-    st.dataframe(insider_roster, use_container_width=True, hide_index=True)
-
-insider_purchases = price_provider.get_insider_purchases(symbol)
-if insider_purchases is not None and not insider_purchases.empty:
-    st.write("")
-    st.markdown("#### Recent Insider Purchases/Sales")
-    st.dataframe(insider_purchases, use_container_width=True, hide_index=True)
+st.info("Insider transaction details are not available from official NSE filings. Promoter shareholding changes are reported through NSE quarterly shareholder-pattern (SHP) disclosures, reflected in the Shareholding Pattern table above.")
 
 st.divider()
 
 # ── Major Holders Breakdown ───────────────────────────────────────────────────
 st.markdown("### Major Holders Breakdown")
-major_holders = price_provider.get_major_holders(symbol)
-if major_holders is not None and not major_holders.empty:
-    mh_df = major_holders.copy()
-    mh_df.columns = [str(c).strip() for c in mh_df.columns]
-    st.dataframe(mh_df, use_container_width=True, hide_index=True)
-else:
-    st.info("Major holders breakdown unavailable from official sources.")
+st.info("Major holders breakdown is unavailable from official NSE sources.")

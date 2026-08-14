@@ -1,4 +1,5 @@
 import math
+import pandas as pd
 from typing import Dict, Any, Optional, List
 
 
@@ -167,19 +168,26 @@ class FinancialCalculator:
             ratios["working_capital"] = cls.compute_working_capital(ca, cl)
 
         ttm_pat = cls._safe(ttm_record.get("pat")) if ttm_record else None
-        annual_pat = cls._safe(annual_record.get("pat")) if annual_record else None
-        quarterly_pat = cls._safe(record.get("pat")) if record else None
-        
-        eval_pat = ttm_pat or annual_pat
-        if not eval_pat and quarterly_pat:
-            eval_pat = quarterly_pat * 4.0
+        if not ttm_pat and isinstance(ttm_record, dict):
+            ttm_pat = cls._safe(ttm_record.get("ttm_pat")) if ttm_record else None
 
-        if market_cap and eval_pat and eval_pat > 0:
-            pe = cls._safe(market_cap) / eval_pat
+        if market_cap and ttm_pat and ttm_pat > 0:
+            pe = cls._safe(market_cap) / ttm_pat
             if pe and pe > 0:
                 ratios["pe"] = round(pe, 2)
 
         return ratios
+
+    @classmethod
+    def compute_ebitda(cls, ebit, dda) -> Optional[float]:
+        """EBITDA = EBIT + Depreciation & Amortisation (both from official filings)."""
+        e = cls._safe(ebit)
+        d = cls._safe(dda)
+        if e is None:
+            return None
+        if d is None:
+            return e  # If D&A unavailable, EBITDA ≈ EBIT
+        return e + d
 
     @classmethod
     def compute_eps(cls, net_income, shares_outstanding) -> Optional[float]:
@@ -242,6 +250,11 @@ class FinancialCalculator:
 
     @classmethod
     def compute_ttm(cls, reports: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Compute TTM metrics from exactly 4 distinct quarterly reports.
+
+        Returns None if fewer than 4 distinct quarters are available.
+        Never interpolates, estimates, or divides annual figures by 4.
+        """
         if not reports:
             return None
 
@@ -262,10 +275,11 @@ class FinancialCalculator:
                 seen_periods.add(period_key)
                 dedup_reports.append(r)
 
+        # Require exactly 4 DISTINCT quarterly filings
         if len(dedup_reports) < 4:
-            latest_4 = dedup_reports
-        else:
-            latest_4 = dedup_reports[:4]
+            return None
+
+        latest_4 = dedup_reports[:4]
 
         if not latest_4:
             return None

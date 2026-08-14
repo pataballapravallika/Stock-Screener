@@ -343,7 +343,7 @@ def save_fundamental_report(record: dict = None, **kwargs):
 
 def get_fundamental_reports(ticker: str, period: str = None) -> pd.DataFrame:
     with sqlite3.connect(DB) as conn:
-        query = "SELECT * FROM fundamental_reports WHERE ticker=?"
+        query = "SELECT * FROM fundamental_reports WHERE ticker=? AND (source='nse_xbrl' OR source_type='nse_xbrl')"
         params = [ticker]
         if period:
             query += " AND period=?"
@@ -356,7 +356,9 @@ def get_latest_quarterly_reports(ticker: str, n: int = 5, limit: int = None) -> 
     count = limit if limit is not None else n
     with sqlite3.connect(DB) as conn:
         df = pd.read_sql_query(
-            "SELECT * FROM fundamental_reports WHERE ticker=? AND period='quarterly' ORDER BY report_date DESC, financial_year DESC, quarter DESC",
+            "SELECT * FROM fundamental_reports WHERE ticker=? AND period='quarterly' "
+            "AND (source_type='nse_xbrl' OR source='nse_xbrl') "
+            "ORDER BY report_date DESC, financial_year DESC, quarter DESC",
             conn,
             params=(ticker,)
         )
@@ -387,6 +389,28 @@ def get_latest_quarterly_reports(ticker: str, n: int = 5, limit: int = None) -> 
                 break
 
     return pd.DataFrame(dedup_rows)
+
+
+def purge_non_nse_reports():
+    """Remove all non-NSE-sourced fundamental data from the DB.
+
+    Any fundamental_reports rows with source != 'nse_xbrl' and
+    source_type != 'nse_xbrl' are deleted.  This prevents stale
+    screener.in or yfinance fallback data from being served as
+    official NSE fundamental data.
+    """
+    with sqlite3.connect(DB) as conn:
+        conn.execute(
+            "DELETE FROM fundamental_reports WHERE "
+            "(source IS NULL OR source != 'nse_xbrl') AND "
+            "(source_type IS NULL OR source_type != 'nse_xbrl')"
+        )
+        conn.execute(
+            "DELETE FROM fundamental_ttm WHERE "
+            "(source IS NULL OR source != 'nse_xbrl') AND "
+            "(source_type IS NULL OR source_type != 'nse_xbrl')"
+        )
+        conn.commit()
 
 
 def repair_and_deduplicate_db():
@@ -469,7 +493,9 @@ def get_latest_annual_reports(ticker: str, n: int = 5, limit: int = None) -> pd.
     count = limit if limit is not None else n
     with sqlite3.connect(DB) as conn:
         return pd.read_sql_query(
-            "SELECT * FROM fundamental_reports WHERE ticker=? AND period='annual' ORDER BY financial_year DESC LIMIT ?",
+            "SELECT * FROM fundamental_reports WHERE ticker=? AND period='annual' "
+            "AND (source_type='nse_xbrl' OR source='nse_xbrl') "
+            "ORDER BY financial_year DESC LIMIT ?",
             conn,
             params=(ticker, count)
         )
@@ -547,11 +573,13 @@ def save_ttm_record(record: dict = None, symbol: str = None, ttm_dict: dict = No
 def get_ttm_record(ticker: str, period: str = "ttm") -> dict:
     with sqlite3.connect(DB) as conn:
         row = conn.execute(
-            "SELECT * FROM fundamental_ttm WHERE ticker=? AND period=?", (ticker, period)
+            "SELECT * FROM fundamental_ttm WHERE ticker=? AND period=? AND (source='nse_xbrl' OR source_type='nse_xbrl')",
+            (ticker, period)
         ).fetchone()
         if row is None:
             row = conn.execute(
-                "SELECT * FROM fundamental_ttm WHERE ticker=? ORDER BY id DESC LIMIT 1", (ticker,)
+                "SELECT * FROM fundamental_ttm WHERE ticker=? AND (source='nse_xbrl' OR source_type='nse_xbrl') ORDER BY id DESC LIMIT 1",
+                (ticker,)
             ).fetchone()
         if row is None:
             return {}

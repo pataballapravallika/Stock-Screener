@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from data.fetch_prices import fetch_prices
 from data.fetch_fundamentals import fetch_fundamentals
-from data.sector_data import fetch_sector_performance, get_standard_sector, compute_sector_aggregated_metrics, STOCK_SECTOR_MAP
+from data.sector_data import fetch_sector_performance, get_standard_sector, compute_sector_aggregated_metrics, get_sector_classifications
 
 st.set_page_config(page_title="Sector Analysis & Rotation", layout="wide")
 
@@ -67,6 +67,8 @@ def load_cached_peer_metrics(std_sector: str, peer_tuples: list):
     peer_symbols = [sym for _, sym in peer_tuples]
     try:
         batch_prices = yf.download(peer_symbols, period="1y", interval="1d", progress=False, threads=True)["Close"]
+        if not batch_prices.empty:
+            batch_prices = batch_prices.dropna()
     except Exception:
         batch_prices = pd.DataFrame()
 
@@ -191,12 +193,29 @@ std_sector = get_standard_sector(target_symbol, raw_sec)
 with c2:
     st.info(f"**Target Symbol:** `{target_symbol}` | **Standardized Sector:** `{std_sector}` | **Data Source:** `{target_fund.get('fundamentals_source', 'Official Filings')}`")
 
-# Gather peers in this sector from STOCK_SECTOR_MAP
+# Gather peers in this sector from NSE official sector index baskets
+sector_baskets = get_sector_classifications()
 peer_list = []
-for sym, sec in STOCK_SECTOR_MAP.items():
-    if sec == std_sector:
-        name = sym.replace(".NS", "")
-        peer_list.append((name, sym))
+# Find which NSE sector index basket this company belongs to
+for sec_name, constituents in sector_baskets.items():
+    if target_symbol in constituents or std_sector in sec_name:
+        for sym in constituents:
+            name = sym.replace(".NS", "")
+            peer_list.append((name, sym))
+        break
+
+# If no basket found via NSE sector indices, fall back to companies
+# sharing the same sector string from NSE quote API
+if not peer_list:
+    from data.fetch_fundamentals import _provider
+    all_companies = [s for s in sector_baskets for s in sector_baskets[s]]
+    # Deduplicate and limit
+    seen = set()
+    for sym in all_companies:
+        if sym not in seen:
+            seen.add(sym)
+            name = sym.replace(".NS", "")
+            peer_list.append((name, sym))
 
 if target_symbol not in [s for _, s in peer_list]:
     peer_list.insert(0, (target_symbol.replace(".NS", ""), target_symbol))

@@ -68,6 +68,10 @@ def fetch_stock_data(symbol, period="max"):
 
         df = df.reset_index()
 
+        # Drop rows where Close is NaN (incomplete current-day data from yfinance)
+        if "Close" in df.columns:
+            df = df.dropna(subset=["Close"])
+
         return df
 
     except Exception as e:
@@ -442,6 +446,14 @@ if df.empty:
 
 df = add_indicators(df)
 
+# Ensure last row has valid Close (indicators may not introduce NaN to Close,
+# but guard against edge cases)
+if "Close" in df.columns:
+    df = df.dropna(subset=["Close"])
+if df.empty:
+    st.error("Data became empty after processing. Try a different ticker.")
+    st.stop()
+
 latest = df.iloc[-1]
 
 previous = (
@@ -456,11 +468,11 @@ previous = (
 # ============================================================
 
 price_change = (
-    latest["Close"] -
-    previous["Close"]
+    float(latest["Close"]) -
+    float(previous["Close"])
 )
 
-if previous["Close"] != 0:
+if previous["Close"] != 0 and not pd.isna(latest["Close"]) and not pd.isna(previous["Close"]):
 
     price_change_percent = (
         price_change /
@@ -519,32 +531,32 @@ c1, c2, c3, c4, c5, c6 = st.columns(6)
 
 c1.metric(
     "Close",
-    f"₹{latest['Close']:,.2f}",
-    f"{price_change_percent:.2f}%"
+    f"₹{float(latest['Close']):,.2f}" if not pd.isna(latest['Close']) else "₹N/A",
+    f"{price_change_percent:.2f}%" if not pd.isna(price_change_percent) else "N/A"
 )
 
 
 c2.metric(
     "Open",
-    f"₹{latest['Open']:,.2f}"
+    f"₹{float(latest['Open']):,.2f}" if not pd.isna(latest['Open']) else "₹N/A"
 )
 
 
 c3.metric(
     "Day High",
-    f"₹{latest['High']:,.2f}"
+    f"₹{float(latest['High']):,.2f}" if not pd.isna(latest['High']) else "₹N/A"
 )
 
 
 c4.metric(
     "Day Low",
-    f"₹{latest['Low']:,.2f}"
+    f"₹{float(latest['Low']):,.2f}" if not pd.isna(latest['Low']) else "₹N/A"
 )
 
 
 c5.metric(
     "Volume",
-    f"{latest['Volume']:,.0f}"
+    f"{int(latest['Volume']):,.0f}" if not pd.isna(latest['Volume']) else "N/A"
 )
 
 

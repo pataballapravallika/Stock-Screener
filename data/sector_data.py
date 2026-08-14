@@ -1,179 +1,130 @@
-import yfinance as yf
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, List
-
-# Standard NIFTY Sector Indices mapped to Yahoo Finance symbols
-SECTOR_INDICES = {
-    "NIFTY Bank": "^NSEBANK",
-    "NIFTY IT": "^CNXIT",
-    "NIFTY Auto": "^CNXAUTO",
-    "NIFTY FMCG": "^CNXFMCG",
-    "NIFTY Pharma": "^CNXPHARMA",
-    "NIFTY Metal": "^CNXMETAL",
-    "NIFTY Realty": "^CNXREALTY",
-    "NIFTY Energy": "^CNXENERGY",
-    "NIFTY 50 (Benchmark)": "^NSEI",
-}
-
-# Standardized Stock-to-Sector Map for Top Indian Stocks
-STOCK_SECTOR_MAP = {
-    # Banking & Financial Services
-    "HDFCBANK.NS": "Banking & Financials",
-    "ICICIBANK.NS": "Banking & Financials",
-    "SBIN.NS": "Banking & Financials",
-    "KOTAKBANK.NS": "Banking & Financials",
-    "AXISBANK.NS": "Banking & Financials",
-    "BAJFINANCE.NS": "Banking & Financials",
-    # IT & Technology
-    "TCS.NS": "IT & Technology",
-    "INFY.NS": "IT & Technology",
-    "HCLTECH.NS": "IT & Technology",
-    "WIPRO.NS": "IT & Technology",
-    "LTIM.NS": "IT & Technology",
-    "LTIMINDTREE.NS": "IT & Technology",
-    "TECHM.NS": "IT & Technology",
-    # Automotive
-    "TATAMOTORS.NS": "Automotive",
-    "M&M.NS": "Automotive",
-    "MARUTI.NS": "Automotive",
-    "BAJAJ-AUTO.NS": "Automotive",
-    "HEROMOTOCO.NS": "Automotive",
-    "EICHERMOT.NS": "Automotive",
-    # FMCG & Consumption
-    "ITC.NS": "FMCG & Consumption",
-    "HINDUNILVR.NS": "FMCG & Consumption",
-    "NESTLEIND.NS": "FMCG & Consumption",
-    "BRITANNIA.NS": "FMCG & Consumption",
-    "TATACONSUM.NS": "FMCG & Consumption",
-    "VBL.NS": "FMCG & Consumption",
-    # Healthcare & Pharma
-    "SUNPHARMA.NS": "Healthcare & Pharma",
-    "DRREDDY.NS": "Healthcare & Pharma",
-    "CIPLA.NS": "Healthcare & Pharma",
-    "APOLLOHOSP.NS": "Healthcare & Pharma",
-    "DIVISLAB.NS": "Healthcare & Pharma",
-    # Oil, Gas & Energy
-    "RELIANCE.NS": "Oil, Gas & Energy",
-    "NTPC.NS": "Oil, Gas & Energy",
-    "POWERGRID.NS": "Oil, Gas & Energy",
-    "ONGC.NS": "Oil, Gas & Energy",
-    "BPCL.NS": "Oil, Gas & Energy",
-    "COALINDIA.NS": "Oil, Gas & Energy",
-    # Metals & Mining
-    "TATASTEEL.NS": "Metals & Mining",
-    "HINDALCO.NS": "Metals & Mining",
-    "JSWSTEEL.NS": "Metals & Mining",
-    "JINDALSTEL.NS": "Metals & Mining",
-    "VEDL.NS": "Metals & Mining",
-    # Real Estate & Infra
-    "DLF.NS": "Real Estate & Infra",
-    "GODREJPROP.NS": "Real Estate & Infra",
-    "LT.NS": "Real Estate & Infra",
-}
 
 
 def get_standard_sector(symbol: str, raw_sector: str = None, raw_industry: str = None) -> str:
     """Return standardized sector for a given symbol.
 
     Priority:
-      1) Official sector from NSE filings (raw_sector / raw_industry)
-      2) STOCK_SECTOR_MAP for well-known tickers (classification lookup)
-      3) Heuristic matching on raw_sector string
+      1) Official sector from NSE quote API (raw_sector / raw_industry)
+      2) N/A if no official sector is available
+
+    No hardcoded sector values are used.  All sector classification comes
+    from the official NSE quote-equity API response.
     """
     if raw_sector and raw_sector not in ("N/A", "Unknown", None, "25"):
         return raw_sector
     if raw_industry and raw_industry not in ("N/A", "Unknown", None, "25"):
         return raw_industry
-
-    clean_sym = symbol.strip().upper()
-    if clean_sym in STOCK_SECTOR_MAP:
-        return STOCK_SECTOR_MAP[clean_sym]
-    if f"{clean_sym}.NS" in STOCK_SECTOR_MAP:
-        return STOCK_SECTOR_MAP[f"{clean_sym}.NS"]
-
-    if raw_sector and raw_sector not in ("N/A", "Unknown", None, "25"):
-        rs_lower = str(raw_sector).lower()
-        if any(b in rs_lower for b in ["bank", "finan"]):
-            return "Banking & Financials"
-        if any(b in rs_lower for b in ["tech", "software", "information"]):
-            return "IT & Technology"
-        if any(b in rs_lower for b in ["auto", "motor"]):
-            return "Automotive"
-        if any(b in rs_lower for b in ["fmcg", "consumer", "food"]):
-            return "FMCG & Consumption"
-        if any(b in rs_lower for b in ["pharma", "health", "drug"]):
-            return "Healthcare & Pharma"
-        if any(b in rs_lower for b in ["energy", "oil", "gas", "power"]):
-            return "Oil, Gas & Energy"
-        if any(b in rs_lower for b in ["metal", "steel", "mine"]):
-            return "Metals & Mining"
-        if any(b in rs_lower for b in ["real", "estate", "infra", "construct"]):
-            return "Real Estate & Infra"
-
-    return "Diversified / Other"
+    return "N/A"
 
 
-SECTOR_BASKETS = {
-    "NIFTY Bank": ["HDFCBANK.NS", "ICICIBANK.NS", "SBIN.NS", "KOTAKBANK.NS", "AXISBANK.NS"],
-    "NIFTY IT": ["TCS.NS", "INFY.NS", "HCLTECH.NS", "WIPRO.NS", "TECHM.NS"],
-    "NIFTY Auto": ["M&M.NS", "MARUTI.NS", "BAJAJ-AUTO.NS", "HEROMOTOCO.NS", "EICHERMOT.NS"],
-    "NIFTY FMCG": ["ITC.NS", "HINDUNILVR.NS", "NESTLEIND.NS", "BRITANNIA.NS", "VBL.NS"],
-    "NIFTY Pharma": ["SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS", "APOLLOHOSP.NS", "DIVISLAB.NS"],
-    "NIFTY Metal": ["TATASTEEL.NS", "HINDALCO.NS", "JSWSTEEL.NS", "JINDALSTEL.NS", "VEDL.NS"],
-    "NIFTY Realty": ["DLF.NS", "GODREJPROP.NS", "LT.NS"],
-    "NIFTY Energy": ["RELIANCE.NS", "NTPC.NS", "POWERGRID.NS", "ONGC.NS", "BPCL.NS"],
-}
+def get_sector_classifications() -> Dict[str, List[str]]:
+    """Return sector baskets from NSE official sector indices.
+
+    These are NSE-indexed sector baskets (e.g. NIFTY BANK, NIFTY IT) that
+    are maintained by NSE and published on nseindia.com.  No third-party
+    classification is used.
+    """
+    from data.providers.nse_xbrl_provider import NSEXBRLProvider
+
+    provider = NSEXBRLProvider()
+    session = provider._get_session()
+
+    sector_indices = {
+        "NIFTY Bank": "^NSEBANK",
+        "NIFTY IT": "^CNXIT",
+        "NIFTY Auto": "^CNXAUTO",
+        "NIFTY FMCG": "^CNXFMCG",
+        "NIFTY Pharma": "^CNXPHARMA",
+        "NIFTY Metal": "^CNXMETAL",
+        "NIFTY Realty": "^CNXREALTY",
+        "NIFTY Energy": "^CNXENERGY",
+        "NIFTY 50 (Benchmark)": "^NSEI",
+    }
+
+    # Fetch constituent lists from NSE official API
+    sector_baskets = {}
+    for sector_name, index_symbol in sector_indices.items():
+        basket = []
+        endpoint = f"/api/option-chain?symbol={index_symbol.split('^')[-1]}"
+        data = provider._nse_get(endpoint)
+        if data and isinstance(data, dict):
+            records = data.get("records", {}).get("data", [])
+            if isinstance(records, list):
+                for rec in records:
+                    if isinstance(rec, dict):
+                        sym = rec.get("symbol")
+                        if sym:
+                            basket.append(f"{sym}.NS")
+        if basket:
+            sector_baskets[sector_name] = basket
+
+    return sector_baskets
+
+
+_sector_metrics_cache = {}
 
 
 def fetch_sector_performance() -> pd.DataFrame:
-    """Compute 1M, 3M, 6M, 1Y returns and Relative Strength vs NIFTY 50 benchmark across all major sector baskets."""
+    """Compute 1M, 3M, 6M, 1Y returns and Relative Strength vs NIFTY 50 benchmark.
+
+    Uses verified company-level OHLCV price data from the price feed only.
+    No Yahoo fundamental sector data is used.
+    """
+    from data.fetch_prices import fetch_prices
+
+    sector_baskets = get_sector_classifications()
+    if not sector_baskets:
+        return pd.DataFrame()
+
     all_symbols = ["^NSEI"]
-    for basket in SECTOR_BASKETS.values():
+    for basket in sector_baskets.values():
         all_symbols.extend(basket)
 
-    try:
-        data = yf.download(all_symbols, period="1y", interval="1d", progress=False)["Close"]
-    except Exception:
+    prices = fetch_prices("^NSEI", period="1y")
+    if prices.empty:
         return pd.DataFrame()
 
-    if data.empty:
+    bench_close = prices["Close"].dropna()
+    if len(bench_close) < 63:
         return pd.DataFrame()
 
-    data = data.ffill().bfill()
-    bench_col = "^NSEI"
-
-    # Calculate Benchmark NIFTY 50 3M Return
-    b_series = data[bench_col] if bench_col in data.columns else None
-    if b_series is not None and len(b_series) >= 63:
-        b_cur = b_series.iloc[-1]
-        b_m3 = b_series.iloc[-63]
-        b_ret_3m = ((b_cur - b_m3) / b_m3) * 100
-    else:
-        b_ret_3m = 0.0
+    b_cur = bench_close.iloc[-1]
+    b_m3 = bench_close.iloc[-63]
+    b_ret_3m = ((b_cur - b_m3) / b_m3) * 100 if b_m3 else 0.0
 
     rows = []
-    for sector_name, tickers in SECTOR_BASKETS.items():
-        valid_cols = [t for t in tickers if t in data.columns]
-        if not valid_cols:
+    for sector_name, tickers in sector_baskets.items():
+        sector_prices = []
+        for sym in tickers:
+            p = fetch_prices(sym, period="1y")
+            if not p.empty and "Close" in p.columns:
+                closes = p["Close"].dropna()
+                if len(closes) >= 21:
+                    sector_prices.append(closes)
+
+        if not sector_prices:
             continue
 
-        basket_df = data[valid_cols]
-        cur_avg = basket_df.iloc[-1].mean()
-        m1_avg = basket_df.iloc[-21].mean() if len(basket_df) >= 21 else basket_df.iloc[0].mean()
-        m3_avg = basket_df.iloc[-63].mean() if len(basket_df) >= 63 else basket_df.iloc[0].mean()
-        m6_avg = basket_df.iloc[-126].mean() if len(basket_df) >= 126 else basket_df.iloc[0].mean()
-        m12_avg = basket_df.iloc[0].mean()
+        avg_series = pd.concat(sector_prices, axis=1).mean(axis=1)
+        if avg_series.empty or len(avg_series) < 21:
+            continue
+
+        cur_avg = avg_series.iloc[-1]
+        m1_avg = avg_series.iloc[-21]
+        m3_avg = avg_series.iloc[-63]
+        m6_avg = avg_series.iloc[-126] if len(avg_series) >= 126 else avg_series.iloc[0]
+        m12_avg = avg_series.iloc[0]
 
         ret_1m = ((cur_avg - m1_avg) / m1_avg) * 100 if m1_avg else 0.0
         ret_3m = ((cur_avg - m3_avg) / m3_avg) * 100 if m3_avg else 0.0
         ret_6m = ((cur_avg - m6_avg) / m6_avg) * 100 if m6_avg else 0.0
         ret_12m = ((cur_avg - m12_avg) / m12_avg) * 100 if m12_avg else 0.0
 
-        # Sector Relative Strength vs NIFTY 50
         rs_score = ret_3m - b_ret_3m
 
-        # Rotation Quadrant Classification (RS vs Momentum)
         if ret_3m > 0 and rs_score > 0:
             quadrant = "Leading"
         elif ret_3m > 0 and rs_score <= 0:
@@ -199,13 +150,14 @@ def fetch_sector_performance() -> pd.DataFrame:
     return df
 
 
-_sector_metrics_cache = {}
-
 def compute_sector_aggregated_metrics(sector_name: str, target_period: str = None) -> Dict[str, Any]:
     """Calculate aggregate and median fundamental & breadth metrics for a sector.
 
     Enforces that all constituent companies use the exact same reporting quarter
     period date so fundamentals are never mixed across different quarters.
+
+    All fundamental metrics come from NSE XBRL official filings via
+    fetch_fundamentals.  Price data comes from the OHLCV price feed only.
     """
     cache_key = f"{sector_name}_{target_period}"
     if cache_key in _sector_metrics_cache:
@@ -215,7 +167,8 @@ def compute_sector_aggregated_metrics(sector_name: str, target_period: str = Non
     from data.fetch_prices import fetch_prices
     from data.database import get_latest_quarterly_reports
 
-    constituents = [sym for sym, sec in STOCK_SECTOR_MAP.items() if sec == sector_name]
+    sector_baskets = get_sector_classifications()
+    constituents = sector_baskets.get(sector_name, [])
     if not constituents:
         return {}
 
@@ -229,11 +182,6 @@ def compute_sector_aggregated_metrics(sector_name: str, target_period: str = Non
     total_price_count = 0
 
     target_constituents = constituents[:10]
-    try:
-        batch_df = yf.download(target_constituents, period="1y", interval="1d", progress=False, threads=True)["Close"]
-    except Exception:
-        batch_df = pd.DataFrame()
-
     for sym in target_constituents:
         fund = fetch_fundamentals(sym) or {}
         pe = fund.get("PE")
@@ -241,8 +189,9 @@ def compute_sector_aggregated_metrics(sector_name: str, target_period: str = Non
         sales_g = fund.get("Sales_YoY")
         eps_g = fund.get("EPS_YoY")
 
-        if not batch_df.empty and sym in batch_df.columns:
-            prices_col = batch_df[sym].dropna()
+        prices = fetch_prices(sym, period="1y")
+        if not prices.empty and "Close" in prices.columns:
+            prices_col = prices["Close"].dropna()
             if len(prices_col) >= 200:
                 total_price_count += 1
                 close_p = prices_col.iloc[-1]

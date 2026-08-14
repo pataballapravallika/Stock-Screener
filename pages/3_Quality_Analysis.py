@@ -268,23 +268,38 @@ if sh_tbl is not None and isinstance(sh_tbl, pd.DataFrame) and not sh_tbl.empty:
     st.dataframe(sh_tbl, use_container_width=True)
 elif p_pct is None:
     st.info("Shareholding data unavailable from current provider.")
-q_roe = fund.get("quarterly_roe") or {}
-q_roa = fund.get("quarterly_roa") or {}
-q_de = fund.get("quarterly_debt_equity") or {}
-if q_fund is not None and not q_fund.empty:
-    periods = list(q_fund.columns)[:4]
-    if len(periods) >= 2:
-        roe_data = []
-        roa_data = []
-        de_data = []
-        for p in periods:
-            p_key = str(p)
-            roe_val = q_roe.get(p_key)
-            roa_val = q_roa.get(p_key)
-            de_val = q_de.get(p_key)
-            roe_data.append(roe_val * 100 if roe_val is not None else None)
-            roa_data.append(roa_val * 100 if roa_val is not None else None)
-            de_data.append(de_val)
+    q_roe = fund.get("quarterly_roe")
+    q_ra = fund.get("quarterly_roa")
+    q_de = fund.get("quarterly_debt_equity")
+    if q_fund is not None and not q_fund.empty:
+        periods = list(q_fund.columns)[:4]
+        if len(periods) >= 2:
+            roe_data = []
+            roa_data = []
+            de_data = []
+            for p in periods:
+                p_key = str(p)
+                if isinstance(q_roe, dict):
+                    roe_val = q_roe.get(p_key)
+                elif isinstance(q_roe, (int, float)):
+                    roe_val = q_roe
+                else:
+                    roe_val = None
+                if isinstance(q_ra, dict):
+                    roa_val = q_ra.get(p_key)
+                elif isinstance(q_ra, (int, float)):
+                    roa_val = q_ra
+                else:
+                    roa_val = None
+                if isinstance(q_de, dict):
+                    de_val = q_de.get(p_key)
+                elif isinstance(q_de, (int, float)):
+                    de_val = q_de
+                else:
+                    de_val = None
+                roe_data.append(roe_val * 100 if roe_val is not None else None)
+                roa_data.append(roa_val * 100 if roa_val is not None else None)
+                de_data.append(de_val)
 
         trend_df = pd.DataFrame({
             "Period": [str(p)[:7] for p in periods],
