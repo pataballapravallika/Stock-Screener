@@ -62,6 +62,16 @@ class _ReportHelpers:
             return s
 
     @staticmethod
+    def parse_date(period_str: str) -> Optional[datetime]:
+        s = _ReportHelpers.normalize_period(period_str)
+        if s is None:
+            return None
+        try:
+            return pd.to_datetime(s).to_pydatetime()
+        except Exception:
+            return None
+
+    @staticmethod
     def derive_quarter(period_str: str) -> Optional[int]:
         s = _ReportHelpers.normalize_period(period_str)
         if s is None:
@@ -155,12 +165,21 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         if self._session is None:
             s = requests.Session()
             s.headers.update(self.HEADERS)
-            try:
-                s.get(self.NSE_BASE, timeout=15)
-            except Exception:
-                pass
+            self._seed_nse_session(s)
             self._session = s
         return self._session
+
+    def _seed_nse_session(self, session: requests.Session):
+        """Acquire NSE session cookies to avoid 403 blocking.
+
+        Hits the NSE homepage and a secondary page to obtain the non-Akamai
+        session cookies that the JSON API endpoints require.
+        """
+        for url in (self.NSE_BASE, f"{self.NSE_BASE}/market-data/live-equity-market"):
+            try:
+                session.get(url, timeout=15)
+            except Exception:
+                pass
 
     def _nse_get(self, endpoint: str, params: Optional[dict] = None, referer_path: str = "/"):
         session = self._get_session()
@@ -171,13 +190,13 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
         for attempt in range(2):
             try:
-                resp = session.get(url, params=params, headers=headers, timeout=10)
+                resp = session.get(url, params=params, headers=headers, timeout=15)
                 if resp.status_code in (401, 403):
-                    # NSE actively blocking — session needs a new cookie
-                    session.get(self.NSE_BASE, timeout=10)
+                    # NSE actively blocking — re-seed session cookies
+                    self._seed_nse_session(session)
                     continue
                 if resp.status_code == 500:
-                    session.get(self.NSE_BASE, timeout=10)
+                    self._seed_nse_session(session)
                     continue
                 resp.raise_for_status()
                 return resp.json()
@@ -272,6 +291,48 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             except Exception:
                 pass
 
+        # If quote API is blocked (company name/sector/industry unavailable),
+        # try NSE integrated-filing-results endpoint for company name and industry,
+        # and corporate-announcements endpoint for smIndustry.
+        if not company_name or not sector or not industry:
+            try:
+                issuer = self._resolve_issuer(symbol)
+                if issuer:
+                    filings_data = self._nse_get(
+                        f"/api/integrated-filing-results?index=equities&symbol={clean}"
+                        f"&issuer={issuer}&period_ended=all&type=Integrated%20Filing-%20Financials&page=1&size=1"
+                    )
+                    if filings_data and isinstance(filings_data, dict):
+                        fd = filings_data.get("data", [])
+                        if fd and isinstance(fd, list):
+                            rec = fd[0]
+                            if isinstance(rec, dict):
+                                # Override company_name if it's still just the slug (quote API failed)
+                                if company_name == clean:
+                                    company_name = rec.get("smName") or rec.get("cmName") or clean
+                                industry = industry or rec.get("smIndustry")
+                                sector = sector or rec.get("sector") or rec.get("macro") or rec.get("industry")
+            except Exception:
+                pass
+
+        # Fallback for industry via corporate-announcements endpoint
+        if not industry:
+            try:
+                ann = self._nse_get(
+                    f"/api/corporate-announcements?index=equities&symbol={clean}&subCategory=announcement-category"
+                )
+                if ann and isinstance(ann, list):
+                    for item in ann:
+                        if isinstance(item, dict):
+                            sm_ind = item.get("smIndustry")
+                            if sm_ind:
+                                industry = industry or sm_ind
+                                break
+            except Exception:
+                pass
+            except Exception:
+                pass
+
         # Last resort: derive shares from XBRL filing data (Equity Share Capital / Face Value)
         # This is the only acceptable fallback for shares — it comes from official NSE XBRL filings.
         if not shares:
@@ -322,6 +383,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         if clean in self._issuer_map:
             return self._issuer_map[clean]
 
+        # Primary: NSE quote-equity API
         data = self._nse_get(f"/api/quote-equity?symbol={clean}")
         if data and isinstance(data, dict):
             info = data.get("info", {})
@@ -329,6 +391,14 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             if company_name:
                 self._issuer_map[clean] = company_name
                 return company_name
+
+        # Secondary: NSE corporate-announcements API includes sm_name
+        ann = self._nse_get(f"/api/corporate-announcements?index=equities&symbol={clean}&subCategory=announcement-category")
+        if ann and isinstance(ann, list):
+            for item in ann:
+                if isinstance(item, dict) and item.get("sm_name"):
+                    self._issuer_map[clean] = item["sm_name"]
+                    return item["sm_name"]
 
         self._issuer_map[clean] = clean
         return clean
@@ -624,7 +694,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
         return sh_dict
 
-    def ingest_from_nse(self, symbol: str, max_filings: int = 5) -> int:
+    def ingest_from_nse(self, symbol: str, max_filings: int = 10) -> int:
         issuer = self._resolve_issuer(symbol)
         if not issuer:
             return 0
@@ -903,11 +973,74 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 return filing.get(attr_name, default)
             return default
 
+        def _get_eps_from_raw():
+            """Fallback: extract EPS from raw XBRL facts for non-standard taxonomies."""
+            raw = _get_attr("raw_facts")
+            if not raw or not isinstance(raw, dict):
+                return None
+            # Context keys used by nse_xbrl: OneD (quarter) / FourD (YTD)
+            for ctx in ("OneD", "FourD"):
+                for tag in (
+                    "DilutedEarningsPerShareBeforeExtraordinaryItems",
+                    "BasicEarningsPerShareBeforeExtraordinaryItems",
+                    "DilutedEarningsLossPerShareFromContinuingOperations",
+                    "BasicEarningsLossPerShareFromContinuingOperations",
+                ):
+                    if tag in raw:
+                        ctx_vals = raw[tag]
+                        if isinstance(ctx_vals, dict) and ctx_vals.get(ctx):
+                            return ctx_vals[ctx]
+            return None
+
+        def _get_q_eps_from_raw():
+            """Fallback: extract quarterly EPS from raw XBRL facts."""
+            raw = _get_attr("raw_facts")
+            if not raw or not isinstance(raw, dict):
+                return None
+            for tag in (
+                "DilutedEarningsPerShareBeforeExtraordinaryItems",
+                "BasicEarningsPerShareBeforeExtraordinaryItems",
+                "DilutedEarningsLossPerShareFromContinuingOperations",
+                "BasicEarningsLossPerShareFromContinuingOperations",
+            ):
+                if tag in raw:
+                    ctx_vals = raw[tag]
+                    if isinstance(ctx_vals, dict) and ctx_vals.get("OneD"):
+                        return ctx_vals["OneD"]
+            return None
+
+        def _get_ytd_eps_from_raw():
+            """Fallback: extract YTD/annual EPS from raw XBRL facts."""
+            raw = _get_attr("raw_facts")
+            if not raw or not isinstance(raw, dict):
+                return None
+            for tag in (
+                "DilutedEarningsPerShareBeforeExtraordinaryItems",
+                "BasicEarningsPerShareBeforeExtraordinaryItems",
+                "DilutedEarningsLossPerShareFromContinuingOperations",
+                "BasicEarningsLossPerShareFromContinuingOperations",
+            ):
+                if tag in raw:
+                    ctx_vals = raw[tag]
+                    if isinstance(ctx_vals, dict) and ctx_vals.get("FourD"):
+                        return ctx_vals["FourD"]
+            return None
+
         rev = self._to_crores(_get_attr("q_revenue") or _get_attr("ytd_revenue"))
         pat = self._to_crores(_get_attr("q_pat") or _get_attr("ytd_pat"))
-        eps = _get_attr("q_diluted_eps") or _get_attr("ytd_diluted_eps")
+        eps = _get_attr("q_diluted_eps") or _get_attr("ytd_diluted_eps") or _get_eps_from_raw()
         ebit = self._to_crores(_get_attr("q_ebit") or _get_attr("ytd_ebit"))
         gross_profit = self._to_crores(_get_attr("gross_profit"))
+        # YTD (annual) values — used when storing annual records for Q4 filings
+        ytd_rev = self._to_crores(_get_attr("ytd_revenue"))
+        ytd_pat = self._to_crores(_get_attr("ytd_pat"))
+        ytd_eps = _get_attr("ytd_diluted_eps") or _get_ytd_eps_from_raw()
+        ytd_ebit = self._to_crores(_get_attr("ytd_ebit"))
+        # Pure quarterly values — used for quarterly record storage
+        q_rev = self._to_crores(_get_attr("q_revenue"))
+        q_pat = self._to_crores(_get_attr("q_pat"))
+        q_eps = _get_attr("q_diluted_eps") or _get_q_eps_from_raw()
+        q_ebit = self._to_crores(_get_attr("q_ebit"))
 
         assets = self._to_crores(_get_attr("bs_total_assets"))
         equity = self._to_crores(_get_attr("bs_equity"))
@@ -947,22 +1080,38 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         date_str = _get_attr("period_end") or _get_attr("dt") or ""
         report_date = _ReportHelpers.normalize_period(date_str) or datetime.now().strftime("%Y-%m-%d")
 
-        period = _get_attr("period") or "quarterly"
+        # Determine period type: annual vs quarterly.
+        # NSE integrated filings contain both quarterly (q_*) and annual/YTD (ytd_*)
+        # data in the same XBRL instance.  We always store the quarterly record
+        # (using q_* values).  When the filing is a Q4 (March period_end) with
+        # ytd_* data, we additionally store an annual record using YTD values.
+        report_dt = _ReportHelpers.parse_date(report_date)
+        is_q4 = report_dt is not None and report_dt.month == 3
+        has_ytd = ytd_rev is not None
+
         quarter = _ReportHelpers.derive_quarter(report_date)
         fy = _ReportHelpers.derive_financial_year(report_date, quarter)
 
+        # Prefer pure quarterly values for the quarterly record; fall back to
+        # q_*||ytd_* if pure q_* is missing (some filings only populate ytd_*).
+        q_rev_val = q_rev if q_rev is not None else rev
+        q_pat_val = q_pat if q_pat is not None else pat
+        q_eps_val = q_eps if q_eps is not None else eps
+        q_ebit_val = q_ebit if q_ebit is not None else ebit
+
+        # Always store as quarterly record
         save_fundamental_report(
             ticker=symbol,
             company=symbol,
             report_date=report_date,
-            period=period,
+            period="quarterly",
             quarter=quarter,
             financial_year=fy,
-            revenue=rev,
-            operating_profit=ebit,
-            ebit=ebit,
-            pat=pat,
-            eps=eps,
+            revenue=q_rev_val,
+            operating_profit=q_ebit_val,
+            ebit=q_ebit_val,
+            pat=q_pat_val,
+            eps=q_eps_val,
             equity=equity,
             assets=assets,
             liabilities=liab,
@@ -997,6 +1146,55 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             unit="INR_Crores",
         )
 
+        # If this is a Q4 filing with YTD data, also store as annual record
+        if is_q4 and has_ytd:
+            annual_fy = report_dt.year if report_dt.month < 4 else report_dt.year + 1
+            save_fundamental_report(
+                ticker=symbol,
+                company=symbol,
+                report_date=report_date,
+                period="annual",
+                quarter=None,
+                financial_year=annual_fy,
+                revenue=ytd_rev,
+                operating_profit=ytd_ebit,
+                ebit=ytd_ebit,
+                pat=ytd_pat,
+                eps=ytd_eps,
+                equity=equity,
+                assets=assets,
+                liabilities=liab,
+                current_assets=c_assets,
+                current_liabilities=c_liab,
+                working_capital=(c_assets - c_liab) if c_assets and c_liab else None,
+                debt=debt_val,
+                operating_cash_flow=ocf,
+                capex=capex,
+                gross_profit=gross_profit,
+                cogs=None,
+                retained_earnings=self._to_crores(_get_attr("retained_earnings")),
+                interest_income=interest_income,
+                interest_expense=interest_expense,
+                total_income=total_income,
+                non_interest_income=non_interest_income,
+                gross_npa=gross_npa,
+                net_npa=net_npa,
+                total_advances=total_advances,
+                provisions=provisions,
+                total_deposits=total_deposits,
+                car=car,
+                cash_and_cash_equivalents=cash_ce,
+                total_debt=actual_debt,
+                depreciation_amortization=self._to_crores(_get_attr("depreciation_amortization")),
+                share_capital=share_cap,
+                face_value=fv,
+                source="nse_xbrl",
+                source_url=_get_attr("xbrl_url", ""),
+                source_type="nse_xbrl",
+                consolidated=_get_attr("is_consolidated", True),
+                unit="INR_Crores",
+            )
+
         return True
 
     def _parse_date(self, date_str: str) -> Optional[datetime]:
@@ -1014,13 +1212,14 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             return None
 
     def _refresh_ttm(self, symbol: str):
-        q_df = get_latest_quarterly_reports(symbol, limit=4)
+        q_df = get_latest_quarterly_reports(symbol, limit=8)
         if q_df.empty:
             return
         records = q_df.to_dict("records")
         if len(records) >= 4:
             ttm_dict = self.calculator.compute_ttm(records)
-            save_ttm_record(symbol, ttm_dict, source="nse_xbrl")
+            if ttm_dict:
+                save_ttm_record(ttm_dict=ttm_dict, symbol=symbol, source="nse_xbrl")
 
     def get_quarterly_financials(self, symbol: str) -> pd.DataFrame:
         self.ensure_data(symbol)

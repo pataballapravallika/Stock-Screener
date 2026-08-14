@@ -32,6 +32,12 @@ def fetch_fundamentals(symbol: str) -> Dict[str, Any]:
     MarketSmith, Screener.in, etc.) fundamental data is ever used.
     """
     clean_sym = symbol.strip().upper()
+    # Normalize: strip .NS/.BO suffix for fundamentals (NSE XBRL data is keyed
+    # by bare ticker in the DB).  Price lookups handle the .NS suffix separately.
+    for suffix in (".NS", ".BO"):
+        if clean_sym.endswith(suffix):
+            clean_sym = clean_sym[:-len(suffix)]
+            break
     if clean_sym in _fundamentals_cache:
         return _fundamentals_cache[clean_sym]
 

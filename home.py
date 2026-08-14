@@ -49,10 +49,16 @@ COMPANIES = {
 @st.cache_data(ttl=3600)
 def fetch_stock_data(symbol, period="max"):
 
+    # yfinance requires exchange suffixes (.NS, .BO) for Indian stocks
+    clean = symbol.strip().upper()
+    if not (clean.endswith(".NS") or clean.endswith(".BO") or clean.startswith("^")
+            or clean.startswith(".") or any(c in clean for c in ["-", "_"])):
+        clean = f"{clean}.NS"
+
     try:
 
         df = yf.download(
-            symbol,
+            clean,
             period=period,
             interval="1d",
             auto_adjust=False,

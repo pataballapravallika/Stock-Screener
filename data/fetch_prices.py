@@ -3,8 +3,15 @@ import pandas as pd
 
 
 def fetch_prices(symbol, period="max"):
+    # yfinance requires exchange suffixes (.NS for NSE, .BO for BSE)
+    # for Indian stocks.  Append .NS if the symbol lacks any suffix.
+    clean = symbol.strip().upper()
+    if not (clean.endswith(".NS") or clean.endswith(".BO") or clean.startswith("^")
+            or clean.startswith(".") or any(c in clean for c in ["-", "_"])):
+        clean = f"{clean}.NS"
+
     df = yf.download(
-        symbol,
+        clean,
         period=period,
         interval="1d",
         auto_adjust=False,
