@@ -127,9 +127,34 @@ class FinancialCalculator:
         merged = {}
         if record and isinstance(record, dict):
             merged.update(record)
+        # Balance sheet items: always prefer annual values.  Quarterly integrated
+        # filing balance sheets often have incomplete or placeholder values
+        # (e.g., equity=0 or very small) because the XBRL snapshot context may
+        # differ between quarterly and annual filings.
+        # Income statement items: prefer annual for ratio calculations (e.g.,
+        # ROE = annual PAT / annual equity is meaningful; quarterly PAT / annual
+        # equity is not).
+        _bs_fields = {"equity", "assets", "liabilities", "current_assets",
+                      "current_liabilities", "debt", "operating_cash_flow",
+                      "capex", "gross_profit", "cash_and_cash_equivalents",
+                      "total_debt", "depreciation_amortization",
+                      "share_capital", "face_value", "shares_outstanding",
+                      "retained_earnings", "pat", "ebit", "revenue",
+                      "operating_profit", "gross_profit", "net_income",
+                      "eps", "total_income", "interest_income", "interest_expense",
+                      "non_interest_income", "interest_or_discount_on_advances",
+                      "revenue_on_investments", "fee_and_commission_income",
+                      "gross_npa", "net_npa", "total_advances", "provisions",
+                      "total_deposits", "car", "other_interest",
+                      "interest_earned", "other_income", "interest_expensed"}
         if annual_record and isinstance(annual_record, dict):
             for k, v in annual_record.items():
-                if merged.get(k) is None:
+                v_safe = cls._safe(v)
+                if k in _bs_fields:
+                    # Always prefer annual values for BS and income items
+                    if v_safe is not None:
+                        merged[k] = v
+                elif merged.get(k) is None:
                     merged[k] = v
         if ttm_record and isinstance(ttm_record, dict):
             for k, v in ttm_record.items():

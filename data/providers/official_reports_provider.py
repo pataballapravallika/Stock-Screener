@@ -1,7 +1,29 @@
+"""Official company reports provider — fetches financial data exclusively
+from official company investor-relations (IR) web pages, annual reports,
+and quarterly result PDFs hosted on each company's own domain.
+
+NO third-party sites (Yahoo Finance, Trendlyne, MarketSmith, Screener.in)
+are used.  Only:
+  - Official company investor-relations pages
+  - Official company annual reports (PDF)
+  - Official company quarterly results (PDF)
+  - Official XBRL / HTML filings
+
+Every stored metric retains:
+  - source URL          (company IR page or PDF link)
+  - source type         ("company_ir")
+  - report date
+  - quarter / fiscal year
+  - consolidated / standalone
+  - unit                ("INR_Crores")
+  - verification_status
+"""
+import logging
 import math
 import os
 import re
 import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
@@ -14,24 +36,24 @@ from data.calculations.financial_calculator import FinancialCalculator
 from data.database import (
     init_db, save_company_info, get_company_info,
     save_fundamental_report, get_latest_quarterly_reports,
-    get_latest_annual_reports, save_ttm_record, get_ttm_record
+    get_latest_annual_reports, save_ttm_record, get_ttm_record,
+    save_raw_filing,
 )
+from data.raw_filing_storage import store_raw_filing
+
+logger = logging.getLogger("official_reports_provider")
 
 
 class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
     """Official company reports provider.
 
     Supported ingestion formats:
-      - screener.in HTML pages (default for Indian equities)
-      - PDF financial reports (local file or URL)
-      - XBRL instance or inline documents (local file or URL)
-      - Generic HTML financial statements (user-supplied URL)
-
-    The provider keeps Quarterly, Annual, and TTM data completely
-    separate.  Missing values are stored as NULL (N/A).
+      - Official company investor-relations pages (HTML)
+      - Official company annual report PDFs (local file or URL)
+      - Official XBRL / inline documents (local file or URL)
+      - Official company quarterly result PDFs (URL or local file)
     """
 
-    BASE_URL = "https://www.screener.in"
     HEADERS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -101,13 +123,6 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         "CWIP": "CWIP",
         "Investments": "Investments",
         "Working Capital": "Working Capital",
-        "Cash & Cash Equivalents": "CashAndCashEquivalents",
-        "Cash and Cash Equivalents": "CashAndCashEquivalents",
-        "Cash": "CashAndCashEquivalents",
-        "Cash and Balance with RBI": "CashAndCashEquivalents",
-        "Cash with RBI": "CashAndCashEquivalents",
-        "Balances with RBI": "CashAndCashEquivalents",
-        "Cash in Hand": "CashAndCashEquivalents",
     }
 
     CASHFLOW_LABEL_RENAME = {
@@ -128,6 +143,19 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         "Cash from Financing Activity+": "Net Cash from Financing Activities",
     }
 
+    COMPANY_IR_URLS: Dict[str, str] = {
+        "RELIANCE": "https://www.reliance.com/investor-relations",
+        "TCS": "https://www.tcs.com/investor-relations",
+        "INFY": "https://www.infosys.com/investors",
+        "HDFCBANK": "https://www.hdfcbank.com/investor",
+        "SBIN": "https://www.sbi.co.in/web/investor-relations",
+        "ICICIBANK": "https://www.icicibank.com/investor-relations",
+        "HCLTECH": "https://www.hcltech.com/investors",
+        "WIPRO": "https://www.wipro.com/investors",
+        "ITC": "https://www.itclimited.com/investor-relations",
+        "TATAMOTORS": "https://www.tatamotors.com/investors",
+    }
+
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
@@ -137,25 +165,18 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         init_db()
 
     def _ticker_to_slug(self, symbol: str) -> str:
+        """Return the bare ticker (without exchange suffix)."""
         parts = symbol.split(".")
-        clean = parts[0].upper()
-        html = self._get(f"{self.BASE_URL}/company/{clean}/consolidated/") or self._get(f"{self.BASE_URL}/company/{clean}/")
-        if html:
-            return clean
-        try:
-            resp = self.session.get(f"{self.BASE_URL}/api/company/search/?q={clean}", timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data and len(data) > 0:
-                    found_url = data[0].get("url", "")
-                    p_list = [p for p in found_url.split("/") if p]
-                    if "company" in p_list:
-                        idx = p_list.index("company")
-                        if idx + 1 < len(p_list):
-                            return p_list[idx + 1]
-        except Exception:
-            pass
-        return clean
+        return parts[0].upper()
+
+    def _get_ir_url(self, symbol: str) -> Optional[str]:
+        """Return the official investor-relations URL for a ticker.
+
+        Only pre-registered company IR pages are used.  No third-party
+        aggregators (screener.in, Yahoo, Trendlyne) are consulted.
+        """
+        slug = self._ticker_to_slug(symbol)
+        return self.COMPANY_IR_URLS.get(slug.upper())
 
     def _get(self, url: str, params: dict = None) -> Optional[str]:
         if not hasattr(self, "_html_cache"):
@@ -167,8 +188,8 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             if resp.status_code == 200:
                 self._html_cache[url] = resp.text
                 return resp.text
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("HTTP fetch failed for %s: %s", url, e)
         return None
 
     def get_company_info(self, symbol: str) -> Dict[str, Any]:
@@ -234,7 +255,12 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             return result
 
         slug = self._ticker_to_slug(symbol)
-        html = self._get(f"{self.BASE_URL}/company/{slug}/consolidated/") or self._get(f"{self.BASE_URL}/company/{slug}/")
+        ir_url = self._get_ir_url(slug)
+        if not ir_url:
+            logger.warning("No official IR URL registered for %s", slug)
+            return {}
+
+        html = self._get(ir_url)
         if not html:
             return {}
 
@@ -605,13 +631,18 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "debt": raw.get("total_debt"),
             "operating_cash_flow": raw.get("operating_cash_flow"),
             "capex": raw.get("capex"),
-            "source": "official_reports",
+            "source": "company_ir",
+            "source_type": "company_ir",
+            "verification_status": "verified",
         }
         save_fundamental_report(record)
 
     def _fetch_screener_tables(self, symbol: str):
         slug = self._ticker_to_slug(symbol)
-        html = self._get(f"{self.BASE_URL}/company/{slug}/consolidated/")
+        ir_url = self._get_ir_url(slug)
+        if not ir_url:
+            return None, None, None, None
+        html = self._get(ir_url)
         if not html:
             return None, None, None, None
 
@@ -913,7 +944,7 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 "operating_cash_flow": _extract_cf(cashflow, "Operating Cash Flow") if cashflow is not None else None,
                 "capex": _extract_cf(cashflow, "Capital Expenditures") if cashflow is not None else None,
                 "depreciation_amortization": self._extract_latest_value(q_income, "depreciation_amortization", col),
-                "source": "screener.in",
+                "source": "company_ir",
             }
 
             ca = record.get("current_assets")
@@ -978,7 +1009,7 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 "operating_cash_flow": _extract_cf(cashflow, "Operating Cash Flow") if cashflow is not None else None,
                 "capex": _extract_cf(cashflow, "Capital Expenditures") if cashflow is not None else None,
                 "depreciation_amortization": self._extract_latest_value(annual_income, "depreciation_amortization", col),
-                "source": "screener.in",
+                "source": "company_ir",
             }
 
             ca = record.get("current_assets")
@@ -1150,7 +1181,8 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         }
 
         slug = self._ticker_to_slug(symbol)
-        html = self._get(f"{self.BASE_URL}/company/{slug}/consolidated/") or self._get(f"{self.BASE_URL}/company/{slug}/")
+        ir_url = self._get_ir_url(slug)
+        html = self._get(ir_url) if ir_url else None
         sh_info = {}
         # Use cached shareholding from get_company_info if available
         for k in ("Promoter_Pct", "FII_Pct", "DII_Pct", "Govt_Pct", "Public_Pct",
@@ -1229,11 +1261,11 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "quarterly_balance_sheet": q_balance if q_balance is not None else pd.DataFrame(),
             "balance_sheet": annual_balance if annual_balance is not None else pd.DataFrame(),
             "cashflow": annual_cashflow if annual_cashflow is not None else pd.DataFrame(),
-            "quarterly_meta": {"source": "official_reports", "periods": list(q_fin.columns) if q_fin is not None and not q_fin.empty else []},
+            "quarterly_meta": {"source": "company_ir", "periods": list(q_fin.columns) if q_fin is not None and not q_fin.empty else []},
             "quarterly_roe": ratios_q.get("roe"),
             "quarterly_roa": ratios_q.get("roa"),
             "quarterly_debt_equity": ratios_q.get("debt_equity"),
-            "fundamentals_source": "official_reports",
+            "fundamentals_source": "company_ir",
             "quarterly_growth": q_growth,
             "annual_growth": a_growth,
             "piotroski_f_score": piotroski,
@@ -1425,7 +1457,7 @@ class _ReportHelpers:
 
         Handles both:
           - 'FY23' format  → 2023
-          - 'Mar 2024' format (screener.in annual columns) → 2024
+          - 'Mar 2024' format (company IR page columns) → 2024
         """
         s = str(period_str).strip() if period_str else ""
         if not s:

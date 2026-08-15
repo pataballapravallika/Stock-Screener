@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from data.fetch_prices import fetch_prices
-from data.fetch_fundamentals import fetch_fundamentals
+from data.fetch_fundamentals import fetch_fundamentals, export_fundamentals_to_excel
 from scoring.technical_score import compute_technical_indicators, score_technical
 from scoring.fundamental_score import score_fundamental, safe_float
 from scoring.banking_score import score_banking
@@ -315,6 +315,21 @@ if not price_data.empty:
 st.divider()
 csv = market.to_csv(index=False).encode("utf-8")
 st.download_button(label="Download Market Data", data=csv, file_name="market_overview.csv", mime="text/csv")
+
+# Excel export for selected company fundamentals
+selected_symbols = [symbol]
+if st.button("Export Selected Company to Excel"):
+    import tempfile, os
+    tmpfile = os.path.join(tempfile.gettempdir(), f"{symbol.replace('.', '_')}_fundamentals.xlsx")
+    success = export_fundamentals_to_excel(selected_symbols, tmpfile)
+    if success:
+        with open(tmpfile, "rb") as f:
+            st.download_button(
+                label="Download Fundamentals (Excel)",
+                data=f,
+                file_name=f"{symbol.replace('.', '_')}_fundamentals.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
 if st.button("Refresh Market Data"):
     st.cache_data.clear()

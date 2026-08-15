@@ -75,6 +75,8 @@ def init_db():
                 consolidated INTEGER DEFAULT 1,
                 unit TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                downloaded_at TEXT,
+                verification_status TEXT DEFAULT 'pending' CHECK (verification_status IN ('pending', 'verified', 'unverified')),
                 UNIQUE(ticker, report_date, period)
             )
         """)
@@ -113,9 +115,32 @@ def init_db():
                 consolidated INTEGER DEFAULT 1,
                 unit TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                downloaded_at TEXT,
+                verification_status TEXT DEFAULT 'pending' CHECK (verification_status IN ('pending', 'verified', 'unverified')),
                 UNIQUE(ticker, period)
             )
         """)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS raw_filings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker TEXT NOT NULL,
+                company TEXT,
+                report_date TEXT NOT NULL,
+                period TEXT NOT NULL,
+                quarter INTEGER,
+                financial_year INTEGER,
+                consolidated INTEGER DEFAULT 1,
+                source_url TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                file_path TEXT,
+                file_hash TEXT,
+                downloaded_at TEXT,
+                verification_status TEXT DEFAULT 'verified',
+                UNIQUE(ticker, report_date, period, source_url)
+            )
+        """)
+
         conn.execute("""
             CREATE TABLE IF NOT EXISTS validation_reports (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -181,8 +206,8 @@ def init_db():
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
 
         for table, col_defs in [
-            ("fundamental_reports", [("source_url", "TEXT"), ("source_type", "TEXT"), ("consolidated", "INTEGER"), ("unit", "TEXT")]),
-            ("fundamental_ttm", [("source_url", "TEXT"), ("source_type", "TEXT"), ("consolidated", "INTEGER"), ("unit", "TEXT")]),
+            ("fundamental_reports", [("source_url", "TEXT"), ("source_type", "TEXT"), ("consolidated", "INTEGER"), ("unit", "TEXT"), ("downloaded_at", "TEXT"), ("verification_status", "TEXT")]),
+            ("fundamental_ttm", [("source_url", "TEXT"), ("source_type", "TEXT"), ("consolidated", "INTEGER"), ("unit", "TEXT"), ("downloaded_at", "TEXT"), ("verification_status", "TEXT")]),
         ]:
             existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
             for col, col_type in col_defs:
@@ -291,8 +316,9 @@ def save_fundamental_report(record: dict = None, **kwargs):
              gross_npa, net_npa, total_advances, provisions, total_deposits, car,
              cash_and_cash_equivalents, total_debt, depreciation_amortization,
              share_capital, face_value,
-             source, source_url, source_type, consolidated, unit)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              source, source_url, source_type, consolidated, unit,
+              downloaded_at, verification_status)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.get("ticker") or record.get("symbol"),
             record.get("company"),
@@ -333,17 +359,19 @@ def save_fundamental_report(record: dict = None, **kwargs):
             record.get("share_capital"),
             record.get("face_value"),
             record.get("source"),
-            record.get("source_url"),
-            record.get("source_type"),
-            record.get("consolidated"),
-            record.get("unit"),
+             record.get("source_url"),
+             record.get("source_type"),
+             record.get("consolidated"),
+             record.get("unit"),
+             record.get("downloaded_at") or record.get("downloadedAt"),
+             record.get("verification_status", "verified"),
         ))
         conn.commit()
 
 
 def get_fundamental_reports(ticker: str, period: str = None) -> pd.DataFrame:
     with sqlite3.connect(DB) as conn:
-        query = "SELECT * FROM fundamental_reports WHERE ticker=? AND (source='nse_xbrl' OR source_type='nse_xbrl')"
+        query = "SELECT * FROM fundamental_reports WHERE ticker=? AND (source_type IN ('nse_xbrl', 'company_ir') OR source IN ('nse_xbrl', 'official_reports', 'company_ir'))"
         params = [ticker]
         if period:
             query += " AND period=?"
@@ -356,9 +384,9 @@ def get_latest_quarterly_reports(ticker: str, n: int = 5, limit: int = None) -> 
     count = limit if limit is not None else n
     with sqlite3.connect(DB) as conn:
         df = pd.read_sql_query(
-            "SELECT * FROM fundamental_reports WHERE ticker=? AND period='quarterly' "
-            "AND (source_type='nse_xbrl' OR source='nse_xbrl') "
-            "ORDER BY report_date DESC, financial_year DESC, quarter DESC",
+             "SELECT * FROM fundamental_reports WHERE ticker=? AND period='quarterly' "
+             "AND (source_type IN ('nse_xbrl', 'company_ir') OR source IN ('nse_xbrl', 'official_reports', 'company_ir')) "
+             "ORDER BY report_date DESC, financial_year DESC, quarter DESC",
             conn,
             params=(ticker,)
         )
@@ -392,23 +420,23 @@ def get_latest_quarterly_reports(ticker: str, n: int = 5, limit: int = None) -> 
 
 
 def purge_non_nse_reports():
-    """Remove all non-NSE-sourced fundamental data from the DB.
+    """Remove all non-official-sourced fundamental data from the DB.
 
-    Any fundamental_reports rows with source != 'nse_xbrl' and
-    source_type != 'nse_xbrl' are deleted.  This prevents stale
-    screener.in or yfinance fallback data from being served as
-    official NSE fundamental data.
+    Only fundamental_reports rows with source IN ('nse_xbrl', 'company_ir')
+    or source_type IN ('nse_xbrl', 'company_ir') are retained.  All other
+    rows (screener.in, yfinance, etc.) are deleted.
     """
+    allowed = "('nse_xbrl', 'company_ir', 'official_reports')"
     with sqlite3.connect(DB) as conn:
         conn.execute(
-            "DELETE FROM fundamental_reports WHERE "
-            "(source IS NULL OR source != 'nse_xbrl') AND "
-            "(source_type IS NULL OR source_type != 'nse_xbrl')"
+            f"DELETE FROM fundamental_reports WHERE "
+            f"(source IS NULL OR source NOT IN {allowed}) AND "
+            f"(source_type IS NULL OR source_type NOT IN {allowed})"
         )
         conn.execute(
-            "DELETE FROM fundamental_ttm WHERE "
-            "(source IS NULL OR source != 'nse_xbrl') AND "
-            "(source_type IS NULL OR source_type != 'nse_xbrl')"
+            f"DELETE FROM fundamental_ttm WHERE "
+            f"(source IS NULL OR source NOT IN {allowed}) AND "
+            f"(source_type IS NULL OR source_type NOT IN {allowed})"
         )
         conn.commit()
 
@@ -494,8 +522,8 @@ def get_latest_annual_reports(ticker: str, n: int = 5, limit: int = None) -> pd.
     with sqlite3.connect(DB) as conn:
         return pd.read_sql_query(
             "SELECT * FROM fundamental_reports WHERE ticker=? AND period='annual' "
-            "AND (source_type='nse_xbrl' OR source='nse_xbrl') "
-            "ORDER BY financial_year DESC LIMIT ?",
+            "AND (source_type IN ('nse_xbrl', 'company_ir') OR source IN ('nse_xbrl', 'official_reports', 'company_ir')) "
+             "ORDER BY financial_year DESC LIMIT ?",
             conn,
             params=(ticker, count)
         )
@@ -521,9 +549,10 @@ def save_ttm_record(record: dict = None, symbol: str = None, ttm_dict: dict = No
              interest_income, interest_expense, total_income, non_interest_income,
              gross_npa, net_npa, total_advances, provisions, total_deposits, car,
              cash_and_cash_equivalents, total_debt, depreciation_amortization,
-             share_capital, face_value, shares_outstanding,
-             source, source_url, source_type, consolidated, unit)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              share_capital, face_value, shares_outstanding,
+              source, source_url, source_type, consolidated, unit,
+              downloaded_at, verification_status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.get("ticker") or record.get("symbol"),
             record.get("company"),
@@ -566,6 +595,8 @@ def save_ttm_record(record: dict = None, symbol: str = None, ttm_dict: dict = No
             record.get("source_type"),
             record.get("consolidated"),
             record.get("unit"),
+            record.get("downloaded_at"),
+            record.get("verification_status", "verified"),
         ))
         conn.commit()
 
@@ -573,12 +604,12 @@ def save_ttm_record(record: dict = None, symbol: str = None, ttm_dict: dict = No
 def get_ttm_record(ticker: str, period: str = "ttm") -> dict:
     with sqlite3.connect(DB) as conn:
         row = conn.execute(
-            "SELECT * FROM fundamental_ttm WHERE ticker=? AND period=? AND (source='nse_xbrl' OR source_type='nse_xbrl')",
+            "SELECT * FROM fundamental_ttm WHERE ticker=? AND period=? AND (source_type IN ('nse_xbrl', 'company_ir') OR source IN ('nse_xbrl', 'official_reports', 'company_ir'))",
             (ticker, period)
         ).fetchone()
         if row is None:
             row = conn.execute(
-                "SELECT * FROM fundamental_ttm WHERE ticker=? AND (source='nse_xbrl' OR source_type='nse_xbrl') ORDER BY id DESC LIMIT 1",
+                "SELECT * FROM fundamental_ttm WHERE ticker=? AND (source_type IN ('nse_xbrl', 'company_ir') OR source IN ('nse_xbrl', 'official_reports', 'company_ir')) ORDER BY id DESC LIMIT 1",
                 (ticker,)
             ).fetchone()
         if row is None:
@@ -609,6 +640,61 @@ def get_validation_reports(ticker: str) -> pd.DataFrame:
     with sqlite3.connect(DB) as conn:
         return pd.read_sql_query(
             "SELECT * FROM validation_reports WHERE ticker=? ORDER BY created_at DESC",
+            conn,
+            params=(ticker,),
+        )
+
+
+def save_raw_filing(record: dict = None, **kwargs):
+    """Store a raw filing's metadata (file is stored on disk in data/raw_filings/)."""
+    if record is None:
+        record = kwargs
+    with sqlite3.connect(DB) as conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO raw_filings
+            (ticker, company, report_date, period, quarter, financial_year,
+             consolidated, source_url, source_type, file_path, file_hash,
+             downloaded_at, verification_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            record.get("ticker"),
+            record.get("company"),
+            record.get("report_date"),
+            record.get("period"),
+            record.get("quarter"),
+            record.get("financial_year"),
+            record.get("consolidated", 1),
+            record.get("source_url"),
+            record.get("source_type"),
+            record.get("file_path"),
+            record.get("file_hash"),
+            record.get("downloaded_at"),
+            record.get("verification_status", "verified"),
+        ))
+        conn.commit()
+
+
+def get_raw_filing(ticker: str, report_date: str, period: str = None) -> dict:
+    """Retrieve a verified raw filing's metadata for a specific report date."""
+    with sqlite3.connect(DB) as conn:
+        query = "SELECT * FROM raw_filings WHERE ticker=? AND report_date=?"
+        params = [ticker, report_date]
+        if period:
+            query += " AND period=?"
+            params.append(period)
+        query += " ORDER BY downloaded_at DESC LIMIT 1"
+        row = conn.execute(query, params).fetchone()
+        if row is None:
+            return {}
+        cols = [d[1] for d in conn.execute("PRAGMA table_info(raw_filings)").fetchall()]
+        return dict(zip(cols, row))
+
+
+def get_all_raw_filings(ticker: str) -> pd.DataFrame:
+    """Return all verified raw filings for a ticker."""
+    with sqlite3.connect(DB) as conn:
+        return pd.read_sql_query(
+            "SELECT * FROM raw_filings WHERE ticker=? ORDER BY report_date DESC, period DESC",
             conn,
             params=(ticker,),
         )

@@ -17,15 +17,21 @@ Every stored metric carries:
   - source_type     ("nse_xbrl")
 """
 
+import hashlib
+import json
+import logging
 import math
 import os
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import requests
+
+from data.providers.errors import NSEAccessDenied, NSETimeout, NSERequestError
+from data.raw_filing_storage import store_raw_filing, load_raw_filing
 
 from data.providers.base_provider import BaseFundamentalProvider, ReportIngestionMixin
 from data.parsers.xbrl_parser import XBRLParser
@@ -42,6 +48,8 @@ from data.database import (
     get_ttm_record,
     purge_non_nse_reports,
 )
+
+logger = logging.getLogger("nse_xbrl_provider")
 
 
 class _ReportHelpers:
@@ -160,6 +168,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         self._session = None
         self._issuer_map = {}
         self._nse_purged = False
+        self._nse_blocked = False
 
     def _get_session(self):
         if self._session is None:
@@ -192,18 +201,41 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         for attempt in range(2):
             try:
                 resp = session.get(url, params=params, headers=headers, timeout=15)
+                if resp.status_code == 200:
+                    return resp.json()
+                # 401/403 → permanent block by Akamai; do not retry
                 if resp.status_code in (401, 403):
-                    # NSE actively blocking — re-seed session cookies
-                    self._seed_nse_session(session)
-                    continue
+                    logger.warning(
+                        "NSE returned HTTP %d for %s — access denied by Akamai. "
+                        "No third-party fallback will be used.", resp.status_code, url
+                    )
+                    raise NSEAccessDenied(
+                        f"NSE returned HTTP {resp.status_code} for {url}. "
+                        "Access is blocked by Akamai bot protection."
+                    )
+                # 500 → transient server error, retry once
                 if resp.status_code == 500:
+                    logger.warning("NSE returned HTTP 500 for %s, retrying…", url)
                     self._seed_nse_session(session)
+                    time.sleep(0.5)
                     continue
+                logger.warning("NSE returned HTTP %d for %s", resp.status_code, url)
                 resp.raise_for_status()
                 return resp.json()
-            except Exception:
+            except (requests.Timeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout) as e:
+                logger.warning("NSE timeout for %s: %s", url, e)
                 if attempt < 1:
                     time.sleep(0.5)
+                else:
+                    raise NSETimeout(f"NSE request timed out for {url}")
+            except NSEAccessDenied:
+                raise
+            except Exception as e:
+                logger.warning("NSE request error for %s attempt %d: %s", url, attempt + 1, e)
+                if attempt < 1:
+                    time.sleep(0.5)
+                else:
+                    raise NSERequestError(f"NSE request failed for {url}: {e}")
         return None
 
     def _nse_get_html(self, path: str, params: Optional[dict] = None) -> Optional[str]:
@@ -253,7 +285,11 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             return result
 
         clean = self._ticker_to_slug(symbol)
-        data = self._nse_get(f"/api/quote-equity?symbol={clean}")
+        data = None
+        try:
+            data = self._nse_get(f"/api/quote-equity?symbol={clean}")
+        except NSEAccessDenied:
+            logger.info("NSE quote API blocked (403) for %s — using cached/official data only.", symbol)
 
         company_name = clean
         sector = None
@@ -308,11 +344,12 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                         if fd and isinstance(fd, list):
                             rec = fd[0]
                             if isinstance(rec, dict):
-                                # Override company_name if it's still just the slug (quote API failed)
                                 if company_name == clean:
                                     company_name = rec.get("smName") or rec.get("cmName") or clean
                                 industry = industry or rec.get("smIndustry")
                                 sector = sector or rec.get("sector") or rec.get("macro") or rec.get("industry")
+            except NSEAccessDenied:
+                logger.info("NSE filing-results API blocked (403) for %s", symbol)
             except Exception:
                 pass
 
@@ -329,8 +366,8 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                             if sm_ind:
                                 industry = industry or sm_ind
                                 break
-            except Exception:
-                pass
+            except NSEAccessDenied:
+                logger.info("NSE corporate-announcements API blocked (403) for %s", symbol)
             except Exception:
                 pass
 
@@ -385,21 +422,34 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             return self._issuer_map[clean]
 
         # Primary: NSE quote-equity API
-        data = self._nse_get(f"/api/quote-equity?symbol={clean}")
-        if data and isinstance(data, dict):
-            info = data.get("info", {})
-            company_name = info.get("companyName")
-            if company_name:
-                self._issuer_map[clean] = company_name
-                return company_name
+        try:
+            data = self._nse_get(f"/api/quote-equity?symbol={clean}")
+            if data and isinstance(data, dict):
+                info = data.get("info", {})
+                company_name = info.get("companyName")
+                if company_name:
+                    self._issuer_map[clean] = company_name
+                    return company_name
+        except NSEAccessDenied:
+            logger.warning("NSE access denied in _resolve_issuer for %s", symbol)
 
         # Secondary: NSE corporate-announcements API includes sm_name
-        ann = self._nse_get(f"/api/corporate-announcements?index=equities&symbol={clean}&subCategory=announcement-category")
-        if ann and isinstance(ann, list):
-            for item in ann:
-                if isinstance(item, dict) and item.get("sm_name"):
-                    self._issuer_map[clean] = item["sm_name"]
-                    return item["sm_name"]
+        try:
+            ann = self._nse_get(f"/api/corporate-announcements?index=equities&symbol={clean}&subCategory=announcement-category")
+            if ann and isinstance(ann, list):
+                for item in ann:
+                    if isinstance(item, dict) and item.get("sm_name"):
+                        self._issuer_map[clean] = item["sm_name"]
+                        return item["sm_name"]
+        except NSEAccessDenied:
+            logger.warning("NSE access denied in _resolve_issuer (ann) for %s", symbol)
+
+        # Last resort: use cached company name from DB (only if previously
+        # obtained from an official NSE source) or fall back to the slug.
+        cached = get_company_info(clean)
+        if cached and cached.get("company_name") and cached.get("company_name") != clean:
+            self._issuer_map[clean] = cached["company_name"]
+            return cached["company_name"]
 
         self._issuer_map[clean] = clean
         return clean
@@ -695,13 +745,25 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
         return sh_dict
 
-    def ingest_from_nse(self, symbol: str, max_filings: int = 10) -> int:
+    def ingest_from_nse(self, symbol: str, max_filings: int = 15) -> int:
         issuer = self._resolve_issuer(symbol)
         if not issuer:
             return 0
 
-        filings = self._fetch_filings(symbol, issuer, max_filings)
+        try:
+            filings = self._fetch_filings(symbol, issuer, max_filings)
+        except NSEAccessDenied:
+            # NSE is blocking us.  Do NOT fall back to Yahoo/Trendlyne/Screener.
+            logger.warning("NSE access denied for %s — using cached verified filings only.", symbol)
+            filings = []
+
         if not filings:
+            # Check if we have verified cached data already
+            q_df = get_latest_quarterly_reports(symbol, limit=1)
+            a_df = get_latest_annual_reports(symbol, limit=1)
+            if not q_df.empty and not a_df.empty:
+                logger.info("Using cached verified filings for %s (NSE blocked).", symbol)
+                return 0
             return 0
 
         stored = 0
@@ -723,22 +785,32 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             from nse_xbrl import NSEClient
             session = self._get_session()
             cookie_str = "; ".join([f"{k}={v}" for k, v in session.cookies.items()])
-            if not cookie_str:
-                return []
-            client = NSEClient(cookie_string=cookie_str)
+            # Pass cookies to NSEClient; if empty, NSEClient will seed its own session
+            client = NSEClient(cookie_string=cookie_str) if cookie_str else NSEClient()
             filings = client.fetch_financials(symbol, issuer, max_filings=max_filings)
             enriched = []
             for f in filings:
-                self._enrich_filing(f, symbol)
-                enriched.append(f)
+                # Only keep consolidated filings (skip standalone duplicates)
+                if getattr(f, "is_consolidated", True) is not False:
+                    self._enrich_filing(f, symbol)
+                    enriched.append(f)
             return enriched
-        except Exception:
+        except NSEAccessDenied:
+            # NSE is blocking us (403).  Do NOT fall back to Yahoo/Trendlyne/Screener.
+            logger.warning("NSE access denied for %s — no third-party fallback will be used.", symbol)
+            return []
+        except Exception as e:
+            logger.warning("nse_xbrl package failed for %s: %s", symbol, e)
             return []
 
     def _fetch_filings_builtin(self, symbol: str, issuer: str, max_filings: int = 5) -> List[dict]:
         clean = self._ticker_to_slug(symbol)
         url = f"/api/corporate-announcements?index=equities&symbol={clean}&subCategory=financial-results"
-        data = self._nse_get(url)
+        try:
+            data = self._nse_get(url)
+        except NSEAccessDenied:
+            logger.warning("NSE access denied (builtin) for %s", symbol)
+            return []
         if not data or not isinstance(data, list):
             return []
 
@@ -785,6 +857,25 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 if xbrl_url:
                     xml_text = self._fetch_url_text(xbrl_url)
                     if xml_text:
+                        # Store raw XBRL to disk
+                        rdate = _ReportHelpers.normalize_period(dt) or datetime.now().strftime("%Y-%m-%d")
+                        try:
+                            store_raw_filing(
+                                ticker=symbol,
+                                company=item.get("symbol", clean),
+                                report_date=rdate,
+                                period="quarterly",
+                                quarter=_ReportHelpers.derive_quarter(rdate),
+                                financial_year=_ReportHelpers.derive_financial_year(rdate),
+                                consolidated="consolidated" in text or "consol" in text,
+                                source_url=xbrl_url,
+                                source_type="nse_xbrl",
+                                content=xml_text.encode("utf-8"),
+                                filename="filing.xml",
+                            )
+                        except Exception as e:
+                            logger.warning("Failed to store raw filing for %s: %s", symbol, e)
+                        filing_dict["_raw_xml"] = xml_text
                         parsed = self._parse_xbrl_stdlib(xml_text, symbol, xbrl_url)
                         if parsed:
                             filing_dict.update(parsed)
@@ -799,6 +890,9 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         if url and isinstance(url, str):
             xml_text = self._fetch_url_text(url)
             if xml_text:
+                # Store raw XML on the filing object for later disk persistence
+                setattr(filing, "_raw_xml", xml_text)
+                setattr(filing, "xbrl_url", url)
                 parsed = self._parse_xbrl_stdlib(xml_text, symbol, url)
                 for k, v in parsed.items():
                     if not hasattr(filing, k) or getattr(filing, k) is None:
@@ -810,6 +904,8 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             resp = session.get(url, headers=self.HEADERS, timeout=20)
             if resp.status_code == 200:
                 return resp.text
+            if resp.status_code in (401, 403):
+                logger.warning("NSE 403 for URL %s — access denied", url)
         except Exception:
             pass
         return None
@@ -884,6 +980,10 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         ocf = _get(["NetCashFlowsFromUsedInOperatingActivities", "OperatingCashFlow", "CashFlowFromOperatingActivities"])
         gross_profit = _get(["GrossProfit", "GrossProfitLossFromOperations"])
         retained_earnings = _get(["RetainedEarnings"])
+        # If RetainedEarnings not reported, derive from equity - share_capital
+        if retained_earnings is None and equity is not None and share_capital is not None:
+            retained_earnings = equity - share_capital
+        cogs = _get(["CostOfMaterialsConsumed", "CostOfSales", "CostOfGoodsSold", "COGS"])
 
         # Cash & cash equivalents
         cash_ce = _get(["CashAndCashEquivalents", "cashendcashequivalents", "cashequivalents"])
@@ -942,6 +1042,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "xbrl_url": xbrl_url,
             "gross_profit": gross_profit,
             "retained_earnings": retained_earnings,
+            "cogs": cogs,
             "interest_income": interest_income,
             "interest_expense": interest_expense,
             "total_income": total_income,
@@ -973,6 +1074,29 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             if isinstance(filing, dict):
                 return filing.get(attr_name, default)
             return default
+
+        # Persist raw filing to disk (data/raw_filings/<TICKER>/<date>/)
+        xbrl_url = _get_attr("xbrl_url", "")
+        raw_xml = getattr(filing, "_raw_xml", None) or _get_attr("raw_xml", None)
+        report_date_str = _get_attr("period_end") or _get_attr("dt") or ""
+        report_date = _ReportHelpers.normalize_period(report_date_str) or datetime.now().strftime("%Y-%m-%d")
+        if xbrl_url and raw_xml:
+            try:
+                store_raw_filing(
+                    ticker=symbol,
+                    company=company_name if (company_name := _get_attr("company_name")) else symbol,
+                    report_date=report_date,
+                    period="quarterly",
+                    quarter=_ReportHelpers.derive_quarter(report_date),
+                    financial_year=_ReportHelpers.derive_financial_year(report_date),
+                    consolidated=_get_attr("is_consolidated", True) is not False,
+                    source_url=xbrl_url,
+                    source_type="nse_xbrl",
+                    content=raw_xml.encode("utf-8") if isinstance(raw_xml, str) else raw_xml,
+                    filename="filing.xml",
+                )
+            except Exception as e:
+                logger.warning("Failed to store raw filing for %s: %s", symbol, e)
 
         def _get_eps_from_raw():
             """Fallback: extract EPS from raw XBRL facts for non-standard taxonomies."""
@@ -1123,7 +1247,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             operating_cash_flow=ocf,
             capex=capex,
             gross_profit=gross_profit,
-            cogs=None,
+            cogs=self._to_crores(_get_attr("cogs")),
             retained_earnings=self._to_crores(_get_attr("retained_earnings")),
             interest_income=interest_income,
             interest_expense=interest_expense,
@@ -1139,15 +1263,17 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             total_debt=actual_debt,
             depreciation_amortization=self._to_crores(_get_attr("depreciation_amortization")),
             share_capital=share_cap,
-            face_value=fv,
-            source="nse_xbrl",
-            source_url=_get_attr("xbrl_url", ""),
-            source_type="nse_xbrl",
-            consolidated=_get_attr("is_consolidated", True),
-            unit="INR_Crores",
-        )
+             face_value=fv,
+             source="nse_xbrl",
+             source_url=_get_attr("xbrl_url", ""),
+             source_type="nse_xbrl",
+             consolidated=_get_attr("is_consolidated", True),
+             unit="INR_Crores",
+             downloaded_at=datetime.now(timezone.utc).isoformat(),
+             verification_status="verified",
+         )
 
-        # If this is a Q4 filing with YTD data, also store as annual record
+         # If this is a Q4 filing with YTD data, also store as annual record
         if is_q4 and has_ytd:
             annual_fy = report_dt.year if report_dt.month < 4 else report_dt.year + 1
             save_fundamental_report(
@@ -1172,7 +1298,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 operating_cash_flow=ocf,
                 capex=capex,
                 gross_profit=gross_profit,
-                cogs=None,
+                cogs=self._to_crores(_get_attr("cogs")),
                 retained_earnings=self._to_crores(_get_attr("retained_earnings")),
                 interest_income=interest_income,
                 interest_expense=interest_expense,
@@ -1188,13 +1314,15 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 total_debt=actual_debt,
                 depreciation_amortization=self._to_crores(_get_attr("depreciation_amortization")),
                 share_capital=share_cap,
-                face_value=fv,
-                source="nse_xbrl",
-                source_url=_get_attr("xbrl_url", ""),
-                source_type="nse_xbrl",
-                consolidated=_get_attr("is_consolidated", True),
-                unit="INR_Crores",
-            )
+                 face_value=fv,
+                 source="nse_xbrl",
+                 source_url=_get_attr("xbrl_url", ""),
+                 source_type="nse_xbrl",
+                 consolidated=_get_attr("is_consolidated", True),
+                 unit="INR_Crores",
+                 downloaded_at=datetime.now(timezone.utc).isoformat(),
+                 verification_status="verified",
+             )
 
         return True
 
@@ -1220,6 +1348,9 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         if len(records) >= 4:
             ttm_dict = self.calculator.compute_ttm(records)
             if ttm_dict:
+                ttm_dict["source_type"] = "nse_xbrl"
+                ttm_dict["downloaded_at"] = datetime.now(timezone.utc).isoformat()
+                ttm_dict["verification_status"] = "verified"
                 save_ttm_record(ttm_dict=ttm_dict, symbol=symbol, source="nse_xbrl")
 
     def get_quarterly_financials(self, symbol: str) -> pd.DataFrame:
@@ -1265,8 +1396,17 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             self._nse_purged = True
         q_df = get_latest_quarterly_reports(symbol, limit=1)
         a_df = get_latest_annual_reports(symbol, limit=1)
+
+        # If no data in DB, attempt fresh fetch from NSE.
+        # If NSE returns 403, we use whatever verified data we already have
+        # (or show N/A — never fall back to Yahoo/Trendlyne/Screener).
         if q_df.empty or a_df.empty:
-            self.ingest_from_nse(symbol)
+            try:
+                self.ingest_from_nse(symbol)
+            except NSEAccessDenied:
+                logger.warning("NSE access denied for %s — using cached/verified data only.", symbol)
+                self._nse_blocked = True
+
         # Data comes ONLY from NSE official XBRL filings.
         # No third-party (screener.in) fallback is used for fundamental data.
 
@@ -1559,16 +1699,16 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "GrossMargins": ratios.get("gross_margin"),
             "DividendYield": None,
             "NetIncome": pat,
-            "TotalAssets": latest_q.get("assets") or latest_a.get("assets"),
-            "TotalLiabilities": latest_q.get("liabilities") or latest_a.get("liabilities"),
+            "TotalAssets": latest_a.get("assets") or latest_q.get("assets"),
+            "TotalLiabilities": latest_a.get("liabilities") or latest_q.get("liabilities"),
             "TotalDebt": latest_a.get("total_debt") or latest_q.get("total_debt") or latest_a.get("debt") or latest_q.get("debt"),
             "TotalCash": latest_a.get("cash_and_cash_equivalents") or latest_q.get("cash_and_cash_equivalents"),
             "CashAndCashEquivalents": latest_a.get("cash_and_cash_equivalents") or latest_q.get("cash_and_cash_equivalents"),
-            "CurrentAssets": latest_q.get("current_assets") or latest_a.get("current_assets"),
-            "CurrentLiabilities": latest_q.get("current_liabilities") or latest_a.get("current_liabilities"),
-            "TotalStockholderEquity": latest_q.get("equity") or latest_a.get("equity"),
-            "WorkingCapital": latest_q.get("working_capital") or latest_a.get("working_capital"),
-            "RetainedEarnings": latest_q.get("retained_earnings") or latest_a.get("retained_earnings"),
+            "CurrentAssets": latest_a.get("current_assets") or latest_q.get("current_assets"),
+            "CurrentLiabilities": latest_a.get("current_liabilities") or latest_q.get("current_liabilities"),
+            "TotalStockholderEquity": latest_a.get("equity") or latest_q.get("equity"),
+            "WorkingCapital": latest_a.get("working_capital") or latest_q.get("working_capital"),
+            "RetainedEarnings": latest_a.get("retained_earnings") or latest_q.get("retained_earnings"),
             "EBIT": ebit,
             "Revenue": rev,
             "PAT": pat,
@@ -1640,6 +1780,8 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "altman_z_score": altman,
             "metric_details": metric_details,
             "fundamentals_source": "nse_xbrl",
+            "data_verification_status": "verified" if (latest_q and latest_a) else "not_verified",
+            "nse_access_blocked": self._nse_blocked,
         }
 
         return result
