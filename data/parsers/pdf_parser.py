@@ -87,6 +87,32 @@ class PDFParser:
             os.unlink(tmp_path)
 
     @classmethod
+    def extract_tables_from_bytes(cls, data: bytes) -> List[pd.DataFrame]:
+        """Extract tabular data from PDF bytes using pdfplumber.
+
+        Returns a list of pandas DataFrames for each table found.
+        """
+        import pdfplumber
+        from io import BytesIO
+        import pandas as pd
+        tables = []
+        try:
+            with pdfplumber.open(BytesIO(data)) as pdf:
+                for page in pdf.pages:
+                    page_tables = page.extract_tables()
+                    for table_data in page_tables:
+                        if table_data and len(table_data) > 1:
+                            try:
+                                df = pd.DataFrame(table_data[1:], columns=table_data[0])
+                                if not df.empty and len(df.columns) >= 2:
+                                    tables.append(df)
+                            except Exception:
+                                continue
+        except Exception:
+            pass
+        return tables
+
+    @classmethod
     def _extract_text(cls, path: str) -> str:
         text = ""
         try:

@@ -1,0 +1,15 @@
+{
+  "ticker": "ONGC",
+  "company": "Oil & Natural Gas Corporation Limited",
+  "report_date": "2025-09-30",
+  "period": "quarterly",
+  "quarter": 2,
+  "financial_year": 2026,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1570650_10112025111812_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\ONGC\\2025-09-30\\filing.xml",
+  "file_hash": "81dc75a18fbbf37bf167104e4eb1758a3611deabd59eca9e9df6df9013de8268",
+  "downloaded_at": "2026-08-16T10:28:11.855441+00:00",
+  "verification_status": "verified"
+}

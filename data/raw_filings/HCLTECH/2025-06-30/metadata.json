@@ -1,0 +1,15 @@
+{
+  "ticker": "HCLTECH",
+  "company": "HCL Technologies Limited",
+  "report_date": "2025-06-30",
+  "period": "quarterly",
+  "quarter": 1,
+  "financial_year": 2026,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1482460_14072025063857_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\HCLTECH\\2025-06-30\\filing.xml",
+  "file_hash": "d7043bc8dc13d80931ee5d8d22065fe864d7d5e6fa7f60e44ff5e06c20e99c83",
+  "downloaded_at": "2026-08-16T10:28:31.644408+00:00",
+  "verification_status": "verified"
+}

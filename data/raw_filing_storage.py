@@ -23,7 +23,7 @@ from typing import Any, Dict, Optional
 from data.database import save_raw_filing, get_raw_filing
 
 RAW_FILINGS_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "data",
     "raw_filings",
 )

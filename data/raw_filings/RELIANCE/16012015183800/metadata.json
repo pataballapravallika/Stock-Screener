@@ -1,0 +1,15 @@
+{
+  "ticker": "RELIANCE",
+  "company": "RELIANCE",
+  "report_date": "16012015183800",
+  "period": "quarterly",
+  "quarter": null,
+  "financial_year": null,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/RIL_Press_01162015183802_1.zip",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\data\\raw_filings\\RELIANCE\\16012015183800\\filing.xml",
+  "file_hash": "e5b614878b849bafe807b9ffd27fb1188fb563533ee6ecb4daef5c048c9b4575",
+  "downloaded_at": "2026-08-15T12:10:12.005331+00:00",
+  "verification_status": "verified"
+}

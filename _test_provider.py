@@ -1,0 +1,23 @@
+import time, sys
+t0 = time.time()
+from data.providers.official_company_provider import OfficialCompanyProvider
+p = OfficialCompanyProvider()
+print(f'Import: {time.time()-t0:.1f}s')
+
+t1 = time.time()
+result = p.build_fundamentals_dict('RELIANCE')
+print(f'build_fundamentals_dict: {time.time()-t1:.1f}s')
+print('Symbol:', result.get('Symbol'))
+print('Company:', result.get('Company'))
+print('Revenue:', result.get('Revenue'))
+print('PAT:', result.get('PAT'))
+print('EPS:', result.get('EPS'))
+print('EBIT:', result.get('EBIT'))
+print('PE:', result.get('PE'))
+print('ROE:', result.get('ROE'))
+print('Source:', result.get('fundamentals_source'))
+print('QFin empty:', result.get('quarterly_financials').empty if result.get('quarterly_financials') is not None else 'None')
+print('AFin empty:', result.get('annual_financials').empty if result.get('annual_financials') is not None else 'None')
+print('Cashflow empty:', result.get('cashflow').empty if result.get('cashflow') is not None else 'None')
+print('Balance empty:', result.get('balance_sheet').empty if result.get('balance_sheet') is not None else 'None')
+print('ir_blocked:', result.get('ir_access_blocked'))

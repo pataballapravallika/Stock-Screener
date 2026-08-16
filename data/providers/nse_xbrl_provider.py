@@ -783,15 +783,24 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
     def _fetch_filings_nsexbrl(self, symbol: str, issuer: str, max_filings: int = 5) -> List[Any]:
         try:
             from nse_xbrl import NSEClient
-            session = self._get_session()
-            cookie_str = "; ".join([f"{k}={v}" for k, v in session.cookies.items()])
-            # Pass cookies to NSEClient; if empty, NSEClient will seed its own session
-            client = NSEClient(cookie_string=cookie_str) if cookie_str else NSEClient()
+            # Do NOT pass our session cookies to NSEClient — the package
+            # seeds its own session with the correct Akamai-compatible URL
+            # sequence.  Passing stale cookies from a blocked session
+            # interferes with the package's internal session management.
+            client = NSEClient()
             filings = client.fetch_financials(symbol, issuer, max_filings=max_filings)
             enriched = []
             for f in filings:
                 # Only keep consolidated filings (skip standalone duplicates)
                 if getattr(f, "is_consolidated", True) is not False:
+                    # Download and enrich with raw XBRL using the package's own session
+                    if f.xbrl_url and not getattr(f, "_raw_xml", None):
+                        try:
+                            resp = client.session.get(f.xbrl_url, timeout=30)
+                            if resp.status_code == 200:
+                                setattr(f, "_raw_xml", resp.text)
+                        except Exception as e:
+                            logger.warning("Failed to download raw XBRL for %s: %s", symbol, e)
                     self._enrich_filing(f, symbol)
                     enriched.append(f)
             return enriched
@@ -887,16 +896,55 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
     def _enrich_filing(self, filing: Any, symbol: str):
         url = getattr(filing, "xbrl_url", None) or getattr(filing, "xbrl_attachment", None)
-        if url and isinstance(url, str):
+        # Use pre-downloaded raw XML if available (from NSEClient session)
+        xml_text = getattr(filing, "_raw_xml", None)
+        if not xml_text and url and isinstance(url, str):
             xml_text = self._fetch_url_text(url)
-            if xml_text:
-                # Store raw XML on the filing object for later disk persistence
-                setattr(filing, "_raw_xml", xml_text)
-                setattr(filing, "xbrl_url", url)
-                parsed = self._parse_xbrl_stdlib(xml_text, symbol, url)
-                for k, v in parsed.items():
-                    if not hasattr(filing, k) or getattr(filing, k) is None:
-                        setattr(filing, k, v)
+        if xml_text:
+            # Store raw XML on the filing object for later disk persistence
+            setattr(filing, "_raw_xml", xml_text)
+            setattr(filing, "xbrl_url", url)
+            parsed = self._parse_xbrl_stdlib(xml_text, symbol, url)
+            # Map parsed keys to the attribute names expected by _store_filing
+            # which uses bs_/cf_ prefixes from the nse_xbrl FilingResult model.
+            attr_map = {
+                "total_assets": ["bs_total_assets", "total_assets"],
+                "equity": ["bs_equity", "total_stockholder_equity", "equity"],
+                "total_liab": ["bs_total_liabilities", "total_liab"],
+                "current_assets": ["bs_current_assets", "current_assets"],
+                "current_liabilities": ["bs_current_liabilities", "current_liabilities"],
+                "capex": ["cf_capex", "capex"],
+                "ocf": ["cf_operating_cash_flow", "operating_cash_flow", "ocf"],
+                "total_debt": ["total_debt"],
+                "cash_and_cash_equivalents": ["cash_and_cash_equivalents"],
+                "depreciation_amortization": ["depreciation_amortization"],
+                "share_capital": ["share_capital"],
+                "face_value": ["face_value"],
+                "shares_outstanding": ["shares_outstanding"],
+                "gross_profit": ["gross_profit"],
+                "cogs": ["cogs"],
+                "retained_earnings": ["retained_earnings"],
+                "interest_income": ["interest_income"],
+                "interest_expense": ["interest_expense"],
+                "total_income": ["total_income"],
+                "non_interest_income": ["non_interest_income"],
+                "gross_npa": ["gross_npa"],
+                "net_npa": ["net_npa"],
+                "total_advances": ["total_advances"],
+                "provisions": ["provisions"],
+                "total_deposits": ["total_deposits"],
+                "car": ["car"],
+            }
+            for k, v in parsed.items():
+                if v is None:
+                    continue
+                # Set the original key
+                if not hasattr(filing, k) or getattr(filing, k) is None:
+                    setattr(filing, k, v)
+                # Set the mapped attribute names
+                for mapped in attr_map.get(k, [k]):
+                    if not hasattr(filing, mapped) or getattr(filing, mapped) is None:
+                        setattr(filing, mapped, v)
 
     def _fetch_url_text(self, url: str) -> Optional[str]:
         session = self._get_session()
@@ -980,10 +1028,6 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         ocf = _get(["NetCashFlowsFromUsedInOperatingActivities", "OperatingCashFlow", "CashFlowFromOperatingActivities"])
         gross_profit = _get(["GrossProfit", "GrossProfitLossFromOperations"])
         retained_earnings = _get(["RetainedEarnings"])
-        # If RetainedEarnings not reported, derive from equity - share_capital
-        if retained_earnings is None and equity is not None and share_capital is not None:
-            retained_earnings = equity - share_capital
-        cogs = _get(["CostOfMaterialsConsumed", "CostOfSales", "CostOfGoodsSold", "COGS"])
 
         # Cash & cash equivalents
         cash_ce = _get(["CashAndCashEquivalents", "cashendcashequivalents", "cashequivalents"])
@@ -999,6 +1043,18 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         if valid_debt_components:
             total_debt = sum(valid_debt_components)
 
+        # Banking-specific: Total Assets may use NetSegmentAssets taxonomy
+        if total_assets is None:
+            total_assets = _get(["NetSegmentAssets", "netsegmentassets"])
+
+        # Banking-specific: For banks, "Total Debt" should NOT include deposits.
+        # If borrowings/loans not found but deposits exist, derive debt from
+        # total liabilities minus total deposits (for banking entities).
+        if total_debt is None:
+            total_deposits_raw = _get(["TotalDeposits", "Deposits"])
+            if total_deposits_raw is not None and total_liab is not None:
+                total_debt = total_liab - total_deposits_raw
+
         # Depreciation, depletion & amortisation expense
         dda = _get(["DepreciationDepletionAndAmortisationExpense", "depreciationdepletionandamortisationexpense",
                      "DepreciationAndAmortization", "depreciationamortization"])
@@ -1012,7 +1068,11 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             # shares_out = share_capital (rupees) / face_value (rupees/share)
             shares_out = share_capital / face_value
 
-        # Banking-specific XBRL fields
+        # If RetainedEarnings not reported, derive from equity - share_capital
+        if retained_earnings is None and equity is not None and share_capital is not None:
+            retained_earnings = equity - share_capital
+
+        cogs = _get(["CostOfMaterialsConsumed", "CostOfSales", "CostOfGoodsSold", "COGS"])
         interest_income = _get(["InterestIncomeFromBankingActivities", "InterestIncome"])
         interest_expense = _get(["InterestExpense", "InterestPaid", "InterestCharges"])
         total_income = _get(["TotalIncome", "TotalRevenueFromOperations", "OperatingIncome"])
@@ -1572,7 +1632,11 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 fcf_annual = self.calculator.compute_fcf(ocf_a, cap_a)
 
         # Retrieve shareholding from official NSE shareholder disclosures
-        sh_info = self.get_shareholding(symbol)
+        try:
+            sh_info = self.get_shareholding(symbol)
+        except Exception as e:
+            logger.warning("Shareholding fetch failed for %s: %s", symbol, e)
+            sh_info = {}
 
         # Compute banking metrics if the company is a financial institution
         is_bank = any(b.lower() in (info.get("sector") or "").lower()

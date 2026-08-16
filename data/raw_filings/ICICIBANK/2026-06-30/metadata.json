@@ -1,0 +1,15 @@
+{
+  "ticker": "ICICIBANK",
+  "company": "ICICI Bank Limited",
+  "report_date": "2026-06-30",
+  "period": "quarterly",
+  "quarter": 1,
+  "financial_year": 2027,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696196_18072026050643_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\ICICIBANK\\2026-06-30\\filing.xml",
+  "file_hash": "ded5800004dd276f7b81110c4be9ed449eb2c7281ee3bb3e67519cf6448a4cb4",
+  "downloaded_at": "2026-08-16T10:28:11.298679+00:00",
+  "verification_status": "verified"
+}

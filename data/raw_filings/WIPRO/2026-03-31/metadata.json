@@ -1,0 +1,15 @@
+{
+  "ticker": "WIPRO",
+  "company": "Wipro Limited",
+  "report_date": "2026-03-31",
+  "period": "quarterly",
+  "quarter": 4,
+  "financial_year": 2026,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1652358_16042026045942_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\WIPRO\\2026-03-31\\filing.xml",
+  "file_hash": "1668fc07016a0a5d9861022325a6caede9de8b1e2f444077774d038b7a2f5301",
+  "downloaded_at": "2026-08-16T10:28:26.993885+00:00",
+  "verification_status": "verified"
+}

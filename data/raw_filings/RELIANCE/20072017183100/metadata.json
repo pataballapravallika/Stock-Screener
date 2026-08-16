@@ -1,0 +1,15 @@
+{
+  "ticker": "RELIANCE",
+  "company": "RELIANCE",
+  "report_date": "20072017183100",
+  "period": "quarterly",
+  "quarter": null,
+  "financial_year": null,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/MediaReleaseRILFYQ12018_20072017183126_370.zip",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\data\\raw_filings\\RELIANCE\\20072017183100\\filing.xml",
+  "file_hash": "5aeee1c7ec922c729516c348ad08c0053d54160f0979adc823f732d279f4043e",
+  "downloaded_at": "2026-08-15T12:10:09.154769+00:00",
+  "verification_status": "verified"
+}

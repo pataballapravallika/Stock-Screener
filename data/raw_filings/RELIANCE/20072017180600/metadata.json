@@ -1,0 +1,15 @@
+{
+  "ticker": "RELIANCE",
+  "company": "RELIANCE",
+  "report_date": "20072017180600",
+  "period": "quarterly",
+  "quarter": null,
+  "financial_year": null,
+  "consolidated": false,
+  "source_url": "https://nsearchives.nseindia.com/corporate/Invest-Jeru_20072017180636_352.zip",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\data\\raw_filings\\RELIANCE\\20072017180600\\filing.xml",
+  "file_hash": "4a5382f837c70076c91370932882363b9dd969700eaf664e4baeda2c7abd0093",
+  "downloaded_at": "2026-08-15T12:10:09.309953+00:00",
+  "verification_status": "verified"
+}

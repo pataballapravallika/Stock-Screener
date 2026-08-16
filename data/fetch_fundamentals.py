@@ -1,9 +1,17 @@
 from typing import Dict, Any, Optional, List
 from data.providers.nse_xbrl_provider import NSEXBRLProvider
+from data.providers.official_reports_provider import OfficialReportsProvider
 from data.database import get_latest_quarterly_reports, get_latest_annual_reports
 
 
-_provider = NSEXBRLProvider()
+_nse_provider = NSEXBRLProvider()
+_official_provider = None
+
+def _get_official_provider():
+    global _official_provider
+    if _official_provider is None:
+        _official_provider = OfficialReportsProvider()
+    return _official_provider
 
 
 def _is_truthy(val: Any) -> bool:
@@ -44,13 +52,33 @@ def fetch_fundamentals(symbol: str) -> Dict[str, Any]:
 
     res = {}
     try:
-        res = _provider.build_fundamentals_dict(clean_sym)
+        res = _nse_provider.build_fundamentals_dict(clean_sym)
     except Exception as e:
         print(f"NSE XBRL error {clean_sym}: {e}")
         res = {"Symbol": clean_sym}
 
     if not res or not res.get("Symbol"):
         res = {"Symbol": clean_sym}
+
+    # If NSE data is insufficient (all N/A), fall back to official company
+    # IR sources (Playwright-based scraping of company annual/quarterly reports).
+    # This does NOT use Yahoo Finance, Trendlyne, MarketSmith, or Screener.in.
+    if _nse_provider._nse_blocked:
+        try:
+            op = _get_official_provider()
+            op_res = op.build_fundamentals_dict(clean_sym)
+            if op_res and op_res.get("Symbol"):
+                # Merge: keep NSE values where non-N/A, fill gaps from OfficialReports
+                for key, val in op_res.items():
+                    if res.get(key) is None or res.get(key) == "N/A":
+                        if val is not None and val != "N/A":
+                            res[key] = val
+                # Ensure Symbol is set
+                if not res.get("Symbol"):
+                    res["Symbol"] = clean_sym
+                res.setdefault("Symbol", clean_sym)
+        except Exception as e:
+            print(f"OfficialReports fallback error {clean_sym}: {e}")
 
     _fundamentals_cache[clean_sym] = res
     return res
@@ -111,7 +139,7 @@ def get_data_provenance(symbol: str) -> dict:
         "report_date": report_date,
         "source_url": source_url,
         "status": status,
-        "nse_access_blocked": _provider._nse_blocked,
+        "nse_access_blocked": _nse_provider._nse_blocked,
     }
 
 

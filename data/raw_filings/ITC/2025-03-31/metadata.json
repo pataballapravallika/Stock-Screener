@@ -1,0 +1,15 @@
+{
+  "ticker": "ITC",
+  "company": "ITC Limited",
+  "report_date": "2025-03-31",
+  "period": "quarterly",
+  "quarter": 4,
+  "financial_year": 2025,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1447370_22052025061857_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\ITC\\2025-03-31\\filing.xml",
+  "file_hash": "669bd636fce025778522d575287de791e521f91c142dd2185027a6b9e04c916e",
+  "downloaded_at": "2026-08-16T10:28:22.919010+00:00",
+  "verification_status": "verified"
+}

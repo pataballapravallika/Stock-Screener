@@ -1,0 +1,15 @@
+{
+  "ticker": "RELIANCE",
+  "company": "RELIANCE",
+  "report_date": "27042018184200",
+  "period": "quarterly",
+  "quarter": null,
+  "financial_year": null,
+  "consolidated": false,
+  "source_url": "https://nsearchives.nseindia.com/corporate/RELIANCE_outcome_dividend_27042018184245.zip",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\data\\raw_filings\\RELIANCE\\27042018184200\\filing.xml",
+  "file_hash": "eb521d59ebb756b5bdbc2ccfeb3cd064c9efeac659427f8e0732a3e6a3c37fed",
+  "downloaded_at": "2026-08-15T12:10:07.356113+00:00",
+  "verification_status": "verified"
+}

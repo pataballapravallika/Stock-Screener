@@ -1,0 +1,15 @@
+{
+  "ticker": "RELIANCE",
+  "company": "RELIANCE",
+  "report_date": "20072012174921",
+  "period": "quarterly",
+  "quarter": null,
+  "financial_year": null,
+  "consolidated": false,
+  "source_url": "https://nsearchives.nseindia.com/corporate/RELIANCE_30JUN2012_S_Q1.zip",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\data\\raw_filings\\RELIANCE\\20072012174921\\filing.xml",
+  "file_hash": "56b8bd0eb3299f9d956cac1ad371ee6efa19375d92a25cfae7c5310d834d9ba7",
+  "downloaded_at": "2026-08-15T12:10:13.578467+00:00",
+  "verification_status": "verified"
+}

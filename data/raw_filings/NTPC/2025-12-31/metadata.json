@@ -1,0 +1,15 @@
+{
+  "ticker": "NTPC",
+  "company": "NTPC Limited",
+  "report_date": "2025-12-31",
+  "period": "quarterly",
+  "quarter": 3,
+  "financial_year": 2026,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1614754_30012026052821_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\NTPC\\2025-12-31\\filing.xml",
+  "file_hash": "51d8d66e1428c89a6427ff41b8ff3c2b4557e6a65b38d98a16e07b506554573f",
+  "downloaded_at": "2026-08-16T10:28:03.371384+00:00",
+  "verification_status": "verified"
+}

@@ -22,7 +22,9 @@ import logging
 import math
 import os
 import re
+import sys
 import time
+import io
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
@@ -192,6 +194,95 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             logger.warning("HTTP fetch failed for %s: %s", url, e)
         return None
 
+    def _fetch_playwright(self, url: str, wait_ms: int = 3000) -> Optional[str]:
+        """Fetch a page that uses JavaScript rendering (SPAs) via Playwright.
+
+        Falls back gracefully to requests if Playwright is unavailable.
+        """
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            logger.debug("Playwright not installed — falling back to requests for %s", url)
+            return self._get(url)
+
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                page.set_default_timeout(60000)
+                page.goto(url, timeout=60000)
+                time.sleep(wait_ms / 1000.0)
+                content = page.content()
+                browser.close()
+                if content and "Access Denied" not in content[:500]:
+                    return content
+                logger.warning("Playwright fetch returned access denied for %s", url)
+                return None
+        except Exception as e:
+            logger.warning("Playwright fetch failed for %s: %s", url, e)
+            return None
+
+    def _get_or_playwright(self, url: str) -> Optional[str]:
+        """Try requests first; if the response looks like a JS-rendered SPA
+        (very small page, no content), retry with Playwright."""
+        html = self._get(url)
+        if html and len(html) > 5000:
+            return html
+        logger.info("requests fetch for %s returned thin content — trying Playwright", url)
+        return self._fetch_playwright(url)
+
+    def _discover_pdf_links(self, html: str, base_url: str) -> List[str]:
+        """Extract all PDF links from an HTML page, resolving relative URLs."""
+        from urllib.parse import urljoin
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, "html.parser")
+        pdfs = []
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if href.lower().endswith(".pdf"):
+                full = urljoin(base_url, href)
+                pdfs.append(full)
+        return pdfs
+
+    _COMPANY_IR_PATHS: Dict[str, List[str]] = {
+        "RELIANCE": [
+            "https://www.relianceindustries.com/investor-relations/financial-results",
+            "https://www.relianceindustries.com/investor-relations/annual-reports",
+        ],
+        "TCS": [
+            "https://www.tcs.com/investors",
+            "https://www.tcs.com/en/investors",
+        ],
+        "INFY": [
+            "https://www.infosys.com/investors/financial-results/",
+            "https://www.infosys.com/investors/listings-and-filings/quarterly-results/",
+        ],
+        "HDFCBANK": [
+            "https://www.hdfcbank.com/investor-relations",
+            "https://www.hdfcbank.com/investor-relations/financial-results",
+        ],
+        "SBIN": [
+            "https://sbi.bank.in/web/investor-relations/reports",
+            "https://www.sbi.co.in/web/investor-relations",
+        ],
+        "ICICIBANK": [
+            "https://www.icicibank.com/investor-relations",
+            "https://www.icicibank.com/investor-relations/financial-results",
+        ],
+        "HCLTECH": [
+            "https://www.hcltech.com/investors",
+        ],
+        "WIPRO": [
+            "https://www.wipro.com/investors/",
+        ],
+        "ITC": [
+            "https://www.itclimited.com/investor-relations",
+        ],
+        "TATAMOTORS": [
+            "https://www.tatamotors.com/investors",
+        ],
+    }
+
     def get_company_info(self, symbol: str) -> Dict[str, Any]:
         cached = get_company_info(symbol)
         if cached and cached.get("company_name") and cached.get("sector") and cached.get("sector") != "Unknown":
@@ -260,7 +351,7 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
             logger.warning("No official IR URL registered for %s", slug)
             return {}
 
-        html = self._get(ir_url)
+        html = self._get_or_playwright(ir_url)
         if not html:
             return {}
 
@@ -642,7 +733,7 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         ir_url = self._get_ir_url(slug)
         if not ir_url:
             return None, None, None, None
-        html = self._get(ir_url)
+        html = self._get_or_playwright(ir_url)
         if not html:
             return None, None, None, None
 
@@ -696,6 +787,146 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 quarterly_income = income_candidates[0][0]
 
         return quarterly_income, annual_income, balance_sheet, cashflow
+
+    def _ingest_from_ir_pages(self, symbol: str) -> bool:
+        """Discover, download, and parse the latest official quarterly report
+        from the company's investor-relations website.
+
+        Uses Playwright for JS-heavy SPAs and requests as a fallback.
+        Returns True if any data was successfully stored.
+        """
+        slug = self._ticker_to_slug(symbol)
+        ir_paths = self._COMPANY_IR_PATHS.get(slug.upper(), [])
+        if not ir_paths:
+            return False
+
+        found_html = None
+        pdf_links: List[str] = []
+        for url in ir_paths:
+            if not found_html:
+                html = self._get_or_playwright(url)
+                if html and "Access Denied" not in html[:500]:
+                    found_html = html
+            # Collect PDF links from all IR pages
+            html = self._get_or_playwright(url)
+            if html:
+                pdfs = self._discover_pdf_links(html, url)
+                pdf_links.extend(pdfs)
+
+        if found_html and not pdf_links:
+            # Try to extract tables directly from the IR page HTML
+            tables = self._extract_tables_from_html(found_html, symbol)
+            if tables:
+                self._store_table_data(symbol, tables, found_html, ir_paths[0])
+                return True
+
+        # Download and parse PDFs
+        for pdf_url in pdf_links[:10]:
+            if not pdf_url.lower().endswith(".pdf"):
+                continue
+            try:
+                resp = self.session.get(pdf_url, timeout=30)
+                if resp.status_code == 200:
+                    pdf_bytes = resp.content
+                    parsed = self._parse_pdf_bytes(pdf_bytes, pdf_url, symbol)
+                    if parsed:
+                        self._store_table_data(symbol, parsed, pdf_url, pdf_url)
+                        return True
+            except Exception as e:
+                logger.warning("Failed to download/parse PDF %s: %s", pdf_url, e)
+
+        return False
+
+    def _extract_tables_from_html(self, html: str, symbol: str) -> Optional[Dict[str, Any]]:
+        """Extract financial tables from HTML IR page content."""
+        from bs4 import BeautifulSoup
+        from io import StringIO
+        soup = BeautifulSoup(html, "html.parser")
+        tables = soup.find_all("table")
+        if not tables:
+            return None
+        result = {}
+        for table in tables:
+            try:
+                df = pd.read_html(StringIO(str(table)))[0]
+                if df.empty or len(df.columns) < 2:
+                    continue
+                df = df.set_index(df.columns[0])
+                index_labels = [str(idx).lower().strip() for idx in df.index]
+                metrics = self._extract_metrics(df, symbol)
+                if metrics:
+                    for k, v in metrics.items():
+                        if v is not None:
+                            result[k] = v
+            except Exception:
+                continue
+        return result if result else None
+
+    def _extract_metrics(self, df: pd.DataFrame, symbol: str) -> Dict[str, Optional[float]]:
+        """Extract key metrics from a normalized DataFrame."""
+        metrics = {}
+        for col in df.columns:
+            col_str = str(col)
+            for metric_name, labels in [
+                ("revenue", ["Total Revenue", "Revenue", "Sales", "Operating Revenue"]),
+                ("pat", ["Net Income", "PAT", "Net Profit", "Profit After Tax"]),
+                ("ebit", ["EBIT", "EBITDA", "Operating Income", "Operating Profit"]),
+                ("equity", ["Total Stockholder Equity", "Total Equity"]),
+                ("assets", ["Total Assets"]),
+                ("debt", ["Total Debt", "Borrowings"]),
+            ]:
+                val = self._extract_latest_value(df, metric_name, col)
+                if val is not None:
+                    metrics[metric_name] = val
+        return metrics
+
+    def _parse_pdf_bytes(self, pdf_bytes: bytes, source_url: str, symbol: str) -> Optional[Dict[str, Any]]:
+        """Parse a PDF's financial tables and extract metrics."""
+        try:
+            tables = self.pdf_parser.extract_tables_from_bytes(pdf_bytes)
+            if not tables:
+                return None
+            result = {}
+            for df in tables:
+                if df is None or df.empty or len(df.columns) < 2:
+                    continue
+                df = df.set_index(df.columns[0])
+                index_labels = [str(idx).lower().strip() for idx in df.index]
+                metrics = self._extract_metrics(df, symbol)
+                if metrics:
+                    for k, v in metrics.items():
+                        if v is not None:
+                            result[k] = v
+            return result if result else None
+        except Exception as e:
+            logger.warning("PDF parse failed for %s: %s", source_url, e)
+            return None
+
+    def _store_table_data(self, symbol: str, tables: Dict[str, Any], source_url: str, report_date: str):
+        """Store extracted table data as a quarterly report record."""
+        from datetime import datetime as dt
+        today = dt.now().strftime("%Y-%m-%d")
+        record = {
+            "ticker": symbol,
+            "company": None,
+            "report_date": today,
+            "period": "quarterly",
+            "quarter": None,
+            "financial_year": None,
+            "revenue": tables.get("revenue"),
+            "operating_profit": tables.get("ebit"),
+            "ebit": tables.get("ebit"),
+            "pat": tables.get("pat"),
+            "eps": tables.get("eps"),
+            "equity": tables.get("equity"),
+            "assets": tables.get("assets"),
+            "debt": tables.get("debt"),
+            "source": "company_ir",
+            "source_type": "company_ir",
+            "source_url": source_url,
+            "verification_status": "verified",
+        }
+        save_fundamental_report(record)
 
     @staticmethod
     def _has_fy_columns(df: pd.DataFrame) -> bool:
@@ -902,7 +1133,17 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         return cashflow
 
     def get_source(self) -> str:
-        return "official_reports"
+        return "company_ir"
+
+    def _ensure_ir_data(self, symbol: str):
+        """Ensure company IR data is available in the DB.
+
+        Tries the standard IR page tables first, then falls back to
+        Playwright-based SPA scraping and PDF parsing.
+        """
+        q_df = get_latest_quarterly_reports(symbol, limit=1)
+        if q_df.empty:
+            self._ingest_from_ir_pages(symbol)
 
     def _store_quarterly_data(self, symbol: str, q_income: pd.DataFrame):
         if q_income is None or q_income.empty:
@@ -1042,6 +1283,9 @@ class OfficialReportsProvider(BaseFundamentalProvider, ReportIngestionMixin):
         return None
 
     def build_fundamentals_dict(self, symbol: str) -> Dict[str, Any]:
+        # Ensure we have data from company IR pages (Playwright-based discovery)
+        self._ensure_ir_data(symbol)
+
         info = self.get_company_info(symbol)
         q_fin = self.get_quarterly_financials(symbol)
         q_balance = self.get_quarterly_balance_sheet(symbol)

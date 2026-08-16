@@ -3,6 +3,8 @@ from typing import Any, Dict, Optional
 
 XBRL_TAGS = {
     "revenue": [
+        "RevenueFromOperations",
+        "Income",
         "ifrs-full:Revenue",
         "ifrs-full:RevenueFromContractWithCustomerExcludingAssessedTax",
         "us-gaap:Revenues",
@@ -10,26 +12,48 @@ XBRL_TAGS = {
         "acfr:Turnover",
     ],
     "operating_profit": [
+        "ProfitBeforeExceptionalItemsAndTax",
+        "ProfitLossFromOrdinaryActivitiesBeforeTax",
+        "ProfitBeforeTax",
+        "OperatingProfitBeforeProvisionAndContingencies",
         "ifrs-full:OperatingProfitLoss",
         "us-gaap:OperatingIncomeLoss",
     ],
     "ebit": [
+        "ProfitBeforeExceptionalItemsAndTax",
+        "ProfitLossFromOrdinaryActivitiesBeforeTax",
+        "ProfitBeforeTax",
+        "OperatingProfitBeforeProvisionAndContingencies",
         "ifrs-full:ProfitLossBeforeTax",
         "us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxes",
         "us-gaap:IncomeLossBeforeIncomeTaxes",
     ],
     "pat": [
+        "ProfitLossForThePeriod",
+        "ProfitLossFromOrdinaryActivitiesAfterTax",
+        "ProfitLossAfterTaxesMinorityInterestAndShareOfProfitLossOfAssociates",
+        "ProfitLossForPeriod",
+        "ProfitLossForPeriodFromContinuingOperations",
         "ifrs-full:ProfitLoss",
         "ifrs-full:NetIncomeLoss",
         "us-gaap:NetIncomeLoss",
         "us-gaap:NetIncomeLossAvailableToCommonStockholdersDiluted",
     ],
     "eps": [
+        "DilutedEarningsPerShareAfterExtraordinaryItems",
+        "BasicEarningsPerShareAfterExtraordinaryItems",
+        "DilutedEarningsPerShareBeforeExtraordinaryItems",
+        "BasicEarningsPerShareBeforeExtraordinaryItems",
+        "BasicEarningsLossPerShareFromContinuingAndDiscontinuedOperations",
+        "BasicEarningsLossPerShareFromContinuingOperations",
+        "BasicEarningsLossPerShare",
         "ifrs-full:BasicEarningsLossPerShare",
         "us-gaap:EarningsPerShareDiluted",
         "us-gaap:EarningsPerShareBasic",
     ],
     "total_assets": [
+        "NetSegmentAssets",
+        "SegmentAssets",
         "ifrs-full:Assets",
         "us-gaap:Assets",
     ],
@@ -38,6 +62,8 @@ XBRL_TAGS = {
         "us-gaap:AssetsCurrent",
     ],
     "total_liabilities": [
+        "NetSegmentLiabilities",
+        "SegmentLiabilities",
         "ifrs-full:Liabilities",
         "us-gaap:Liabilities",
     ],
@@ -49,6 +75,7 @@ XBRL_TAGS = {
         "ifrs-full:Equity",
         "ifrs-full:EquityAttributableToOwnersOfParent",
         "us-gaap:StockholdersEquity",
+        "Equity",
     ],
     "total_debt": [
         "ifrs-full:NoncurrentFinancialLiabilities",
@@ -57,13 +84,24 @@ XBRL_TAGS = {
         "us-gaap:DebtCurrent",
     ],
     "operating_cash_flow": [
-        "ifrs-full:NetCashFlowsFromUsedInOperatingActivities",
+        "NetCashFlowsFromUsedInOperatingActivities",
         "us-gaap:NetCashProvidedByUsedInOperatingActivities",
     ],
     "capex": [
-        "ifrs-full:PaymentsToAcquirePropertyPlantAndEquipment",
+        "PaymentsToAcquirePropertyPlantAndEquipment",
         "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment",
         "ifrs-full:PurchaseOfPropertyPlantAndEquipment",
+    ],
+    "share_capital": [
+        "PaidUpValueOfEquityShareCapital",
+        "ifrs-full:EquityCapital",
+        "us-gaap:CommonStock",
+        "ifrs-full:ShareCapital",
+    ],
+    "face_value": [
+        "FaceValueOfEquityShareCapital",
+        "ifrs-full:FaceValue",
+        "acfr:FaceValue",
     ],
 }
 
@@ -71,7 +109,7 @@ XBRL_TAGS = {
 class XBRLParser:
     """Parses XBRL inline or instance documents into normalized financials.
 
-    Returns a dict keyed by standard field names.  Values that cannot be
+    Returns a dict keyed by standard field names. Values that cannot be
     resolved are left as None (N/A).
     """
 
@@ -135,37 +173,29 @@ class XBRLParser:
             return result
 
         for field, tags in XBRL_TAGS.items():
-            val = cls._find_tag_value(root, tags)
+            val = cls._find_tag_value(root, tags, field)
             if val is not None:
                 result[field] = val
         return result
 
     @staticmethod
-    def _find_tag_value(root, tag_candidates) -> Optional[float]:
-        ns_map = {}
-        try:
-            from lxml import etree
-            for _, elem in etree.iterwalk(root, etree.ElementDepthFirstIterator):
-                if elem.tag and "{" in elem.tag:
-                    prefix = elem.tag.split("}")[0].lstrip("{")
-                    if prefix not in ns_map:
-                        ns_map[prefix] = elem.tag.split("}")[0].lstrip("{")
-        except Exception:
-            pass
-
-        tags_to_try = list(tag_candidates)
-        local_names = [t.split(":")[-1] for t in tags_to_try]
-
-        for elem in root.iter():
-            tag = elem.tag
-            if not isinstance(tag, str):
-                continue
-            local = tag.split("}")[-1] if "}" in tag else tag
-            if local in local_names:
-                text = (elem.text or "").strip().replace(",", "")
-                if text:
-                    try:
-                        return float(text)
-                    except ValueError:
-                        continue
+    def _find_tag_value(root, tag_candidates, field_name: str = "") -> Optional[float]:
+        for candidate in tag_candidates:
+            target_local = candidate.split(":")[-1]
+            for elem in root.iter():
+                tag = elem.tag
+                if not isinstance(tag, str):
+                    continue
+                local = tag.split("}")[-1] if "}" in tag else tag
+                if local == target_local:
+                    text = (elem.text or "").strip().replace(",", "")
+                    if text:
+                        try:
+                            fval = float(text)
+                            # Normalize rupees to Crores if field is monetary (not EPS/face_value) and fval > 100,000
+                            if field_name not in ("eps", "face_value") and abs(fval) >= 100000:
+                                fval = fval / 1e7
+                            return fval
+                        except ValueError:
+                            continue
         return None

@@ -1,0 +1,15 @@
+{
+  "ticker": "WIPRO",
+  "company": "Wipro Limited",
+  "report_date": "2025-03-31",
+  "period": "quarterly",
+  "quarter": 4,
+  "financial_year": 2025,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1416343_16042025071015_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\WIPRO\\2025-03-31\\filing.xml",
+  "file_hash": "4be14ad36223b185a9bb600e31616bf51f3ea79d97b89eaf0f7a6bb9866bd2c3",
+  "downloaded_at": "2026-08-16T10:28:27.081454+00:00",
+  "verification_status": "verified"
+}

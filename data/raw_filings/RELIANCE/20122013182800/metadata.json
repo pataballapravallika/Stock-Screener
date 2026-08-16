@@ -1,0 +1,15 @@
+{
+  "ticker": "RELIANCE",
+  "company": "RELIANCE",
+  "report_date": "20122013182800",
+  "period": "quarterly",
+  "quarter": null,
+  "financial_year": null,
+  "consolidated": false,
+  "source_url": "https://nsearchives.nseindia.com/corporate/BoardDecisions201213_12202013182803_2.zip",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\data\\raw_filings\\RELIANCE\\20122013182800\\filing.xml",
+  "file_hash": "ff32e725274afd1b26426a3aa93e2d86aeeaa8684a500c5e395b211bf100d083",
+  "downloaded_at": "2026-08-15T12:10:13.119569+00:00",
+  "verification_status": "verified"
+}

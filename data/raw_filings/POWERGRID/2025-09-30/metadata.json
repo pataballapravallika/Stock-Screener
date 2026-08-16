@@ -1,0 +1,15 @@
+{
+  "ticker": "POWERGRID",
+  "company": "Power Grid Corporation of India Limited",
+  "report_date": "2025-09-30",
+  "period": "quarterly",
+  "quarter": 2,
+  "financial_year": 2026,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1564095_03112025070113_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\POWERGRID\\2025-09-30\\filing.xml",
+  "file_hash": "d77741f3545d33c09bb058add80319a5a21eb414889cefb5e62ce7208cb965fa",
+  "downloaded_at": "2026-08-16T10:28:07.936176+00:00",
+  "verification_status": "verified"
+}

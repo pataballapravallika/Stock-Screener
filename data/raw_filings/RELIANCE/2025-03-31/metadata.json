@@ -1,0 +1,15 @@
+{
+  "ticker": "RELIANCE",
+  "company": "Reliance Industries Limited",
+  "report_date": "2025-03-31",
+  "period": "quarterly",
+  "quarter": 4,
+  "financial_year": 2025,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1425445_25042025095716_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\data\\raw_filings\\RELIANCE\\2025-03-31\\filing.xml",
+  "file_hash": "01eb907ce8f92dce67c8a24397ea69c0c0d3f594a9681ef9e7e8ac82e2a6a325",
+  "downloaded_at": "2026-08-15T12:46:52.551267+00:00",
+  "verification_status": "verified"
+}

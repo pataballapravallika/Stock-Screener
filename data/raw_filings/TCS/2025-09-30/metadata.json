@@ -1,0 +1,15 @@
+{
+  "ticker": "TCS",
+  "company": "Tata Consultancy Services Limited",
+  "report_date": "2025-09-30",
+  "period": "quarterly",
+  "quarter": 2,
+  "financial_year": 2026,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1543879_09102025115624_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\data\\raw_filings\\TCS\\2025-09-30\\filing.xml",
+  "file_hash": "625e7c0db736a1df077ea75ba45a3d5ee1a16047f88cc6304fb97ac2e51a97f2",
+  "downloaded_at": "2026-08-15T12:50:30.358302+00:00",
+  "verification_status": "verified"
+}

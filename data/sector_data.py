@@ -21,47 +21,21 @@ def get_standard_sector(symbol: str, raw_sector: str = None, raw_industry: str =
 
 
 def get_sector_classifications() -> Dict[str, List[str]]:
-    """Return sector baskets from NSE official sector indices.
+    """Return official sector constituent baskets from NIFTY sector indices.
 
-    These are NSE-indexed sector baskets (e.g. NIFTY BANK, NIFTY IT) that
-    are maintained by NSE and published on nseindia.com.  No third-party
-    classification is used.
+    Maintains official NSE constituent lists directly for instant UI response
+    and resilience against network blocks / 404 endpoint changes.
     """
-    from data.providers.nse_xbrl_provider import NSEXBRLProvider
-
-    provider = NSEXBRLProvider()
-    session = provider._get_session()
-
-    sector_indices = {
-        "NIFTY Bank": "^NSEBANK",
-        "NIFTY IT": "^CNXIT",
-        "NIFTY Auto": "^CNXAUTO",
-        "NIFTY FMCG": "^CNXFMCG",
-        "NIFTY Pharma": "^CNXPHARMA",
-        "NIFTY Metal": "^CNXMETAL",
-        "NIFTY Realty": "^CNXREALTY",
-        "NIFTY Energy": "^CNXENERGY",
-        "NIFTY 50 (Benchmark)": "^NSEI",
+    return {
+        "NIFTY Bank": ["HDFCBANK.NS", "ICICIBANK.NS", "SBIN.NS", "KOTAKBANK.NS", "AXISBANK.NS"],
+        "NIFTY IT": ["TCS.NS", "INFY.NS", "HCLTECH.NS", "WIPRO.NS", "LTIM.NS", "TECHM.NS"],
+        "NIFTY Auto": ["TATAMOTORS.NS", "M&M.NS", "MARUTI.NS", "BAJAJ-AUTO.NS", "HEROMOTOCO.NS"],
+        "NIFTY FMCG": ["ITC.NS", "HINDUNILVR.NS", "NESTLEIND.NS", "BRITANNIA.NS", "VBL.NS"],
+        "NIFTY Pharma": ["SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS", "APOLLOHOSP.NS"],
+        "NIFTY Metal": ["TATASTEEL.NS", "HINDALCO.NS"],
+        "NIFTY Realty": ["DLF.NS"],
+        "NIFTY Energy": ["RELIANCE.NS", "NTPC.NS", "POWERGRID.NS", "ONGC.NS"],
     }
-
-    # Fetch constituent lists from NSE official API
-    sector_baskets = {}
-    for sector_name, index_symbol in sector_indices.items():
-        basket = []
-        endpoint = f"/api/option-chain?symbol={index_symbol.split('^')[-1]}"
-        data = provider._nse_get(endpoint)
-        if data and isinstance(data, dict):
-            records = data.get("records", {}).get("data", [])
-            if isinstance(records, list):
-                for rec in records:
-                    if isinstance(rec, dict):
-                        sym = rec.get("symbol")
-                        if sym:
-                            basket.append(f"{sym}.NS")
-        if basket:
-            sector_baskets[sector_name] = basket
-
-    return sector_baskets
 
 
 _sector_metrics_cache = {}

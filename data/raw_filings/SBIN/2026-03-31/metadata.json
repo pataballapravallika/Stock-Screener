@@ -1,0 +1,15 @@
+{
+  "ticker": "SBIN",
+  "company": "State Bank of India",
+  "report_date": "2026-03-31",
+  "period": "quarterly",
+  "quarter": 4,
+  "financial_year": 2026,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1664904_08052026044212_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\SBIN\\2026-03-31\\filing.xml",
+  "file_hash": "1adf54ac4f2e07fe0a281fcbefe0143ed06cd0f622f00465e40447b0d3e668c2",
+  "downloaded_at": "2026-08-16T10:28:19.594576+00:00",
+  "verification_status": "verified"
+}

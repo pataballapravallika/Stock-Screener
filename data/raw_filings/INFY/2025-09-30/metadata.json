@@ -1,0 +1,15 @@
+{
+  "ticker": "INFY",
+  "company": "Infosys Limited",
+  "report_date": "2025-09-30",
+  "period": "quarterly",
+  "quarter": 2,
+  "financial_year": 2026,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1551001_16102025094433_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\data\\raw_filings\\INFY\\2025-09-30\\filing.xml",
+  "file_hash": "412f184d7ef6ed8d9c24a53f784abf76038f2ba49ed5f88533bdbd6685b0256f",
+  "downloaded_at": "2026-08-15T12:50:55.894571+00:00",
+  "verification_status": "verified"
+}

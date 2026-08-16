@@ -1,0 +1,15 @@
+{
+  "ticker": "HDFCBANK",
+  "company": "HDFC Bank Limited",
+  "report_date": "2026-06-30",
+  "period": "quarterly",
+  "quarter": 1,
+  "financial_year": 2027,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_BANKING_1696123_18072026040126_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\HDFCBANK\\2026-06-30\\filing.xml",
+  "file_hash": "7c5f4cfae145b0ac20dcbb7081c6a76488fb1ffea1b42e49ddd4a6f46d6cf38b",
+  "downloaded_at": "2026-08-16T10:27:57.015560+00:00",
+  "verification_status": "verified"
+}

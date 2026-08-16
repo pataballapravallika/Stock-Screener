@@ -1,0 +1,15 @@
+{
+  "ticker": "ITC",
+  "company": "ITC Limited",
+  "report_date": "2026-03-31",
+  "period": "quarterly",
+  "quarter": 4,
+  "financial_year": 2026,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1670766_21052026063229_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\ITC\\2026-03-31\\filing.xml",
+  "file_hash": "366b95ff7cc75b499c447ad0852d8d02233cd290ad4d0fad06b4269480fb23c7",
+  "downloaded_at": "2026-08-16T10:28:22.880313+00:00",
+  "verification_status": "verified"
+}
