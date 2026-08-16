@@ -384,6 +384,23 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             except Exception:
                 pass
 
+        # Fallback to cached DB values if live API failed or was blocked
+        try:
+            cached = get_company_info(symbol)
+            if cached:
+                if (not sector or sector in ("Unknown", "N/A")) and cached.get("sector"):
+                    sector = cached.get("sector")
+                if (not industry or industry in ("Unknown", "N/A")) and cached.get("industry"):
+                    industry = cached.get("industry")
+                if not mcap and cached.get("market_cap"):
+                    mcap = cached.get("market_cap")
+                if not shares and cached.get("shares_outstanding"):
+                    shares = cached.get("shares_outstanding")
+                if company_name in (clean, "", None) and cached.get("company_name"):
+                    company_name = cached.get("company_name")
+        except Exception:
+            pass
+
         if not sector or sector == "Unknown":
             sector = "N/A"
         if not industry or industry == "Unknown":
@@ -490,9 +507,8 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
         # Check database cache first to avoid redundant network calls
         cached = get_company_info(symbol)
-        if cached and cached.get("company_name"):
-            cached_pct_total = (cached.get("promoter_pct") or 0) + (cached.get("fii_pct") or 0) + (cached.get("dii_pct") or 0)
-            if cached_pct_total > 0:
+        if cached and (cached.get("promoter_pct") is not None or cached.get("fii_pct") is not None or cached.get("public_pct") is not None):
+            if (cached.get("promoter_pct") or 0) + (cached.get("fii_pct") or 0) + (cached.get("dii_pct") or 0) + (cached.get("public_pct") or 0) > 0:
                 sh_dict.update({
                     "Promoter_Pct": cached.get("promoter_pct"),
                     "FII_Pct": cached.get("fii_pct"),

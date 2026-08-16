@@ -3,7 +3,8 @@ import pandas as pd
 import os
 from datetime import datetime
 
-DB = "stock_data.db"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB = os.path.join(BASE_DIR, "stock_data.db")
 
 
 def init_db():
