@@ -105,12 +105,18 @@ def compute_audited_valuation(symbol: str) -> dict:
         ttm_eps = ttm_rec.get("eps") if ttm_rec else None
         if ttm_eps is not None:
             ttm_eps_source = "TTM record (aggregated from quarterly filings)"
+        else:
+            ttm_eps = fund_raw.get("TTMEPS") or fund_raw.get("EPS")
+            if ttm_eps:
+                ttm_eps_source = "Latest reported EPS (NSE XBRL)"
 
     if ttm_eps is None:
         ttm_eps_source = "N/A"
 
-    # P/E Ratio = Current Market Price / TTM EPS
+    # P/E Ratio = Current Market Price / TTM EPS or pre-calculated PE
     pe_ratio = (current_price / ttm_eps) if (current_price and ttm_eps and ttm_eps > 0) else None
+    if pe_ratio is None:
+        pe_ratio = fund_raw.get("PE")
 
     # ── 3. PEG Ratio ──────────────────────────────────────────────────────
     # EPS growth must be from official NSE XBRL annual filings
@@ -126,7 +132,7 @@ def compute_audited_valuation(symbol: str) -> dict:
     if pe_ratio and eps_g_pct and eps_g_pct > 0:
         peg_ratio = pe_ratio / eps_g_pct
     else:
-        peg_ratio = None
+        peg_ratio = fund_raw.get("PEG")
 
     # ── 4. EV / EBITDA (Exempt for Banks) ─────────────────────────────────
     is_bank = any(b in symbol for b in ["BANK", "SBIN"])

@@ -1610,9 +1610,6 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             latest_a["market_cap"] = mcap
             ratios = self.calculator.compute_all_ratios(latest_q, latest_a, ttm_rec or {})
 
-        eps_g = q_growth.get("eps_qoq") or a_growth.get("eps_yoy")
-        peg = self.calculator.compute_peg(ratios.get("pe"), eps_g)
-
         # Compute TTM EPS and TTM PAT for accurate P/E (sum of 4 distinct quarterly filings)
         ttm_eps = None
         ttm_pat = None
@@ -1620,7 +1617,6 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             eps_vals = []
             pat_vals = []
             seen_periods = set()
-            # Deduplicate by report_date to ensure 4 DISTINCT quarterly filings
             for rec in q_list[:8]:
                 period_key = str(rec.get("report_date", ""))
                 if not period_key or period_key in seen_periods:
@@ -1632,7 +1628,6 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
                 v_pat = rec.get("pat")
                 if v_pat is not None and not (isinstance(v_pat, float) and v_pat != v_pat):
                     pat_vals.append(float(v_pat))
-            # Only compute TTM if we have 4 distinct quarterly filings
             if len(eps_vals) >= 4:
                 ttm_eps = sum(eps_vals[:4])
             if len(pat_vals) >= 4:
@@ -1648,6 +1643,18 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             if shares is not None and float(shares) > 0:
                 price_per_share = (float(mcap) * 1e7) / float(shares)
                 pe_ratio = round(price_per_share / ttm_eps, 2)
+
+        # Compute PEG = PE / EPS Growth Rate (%)
+        eps_g = (
+            a_growth.get("eps_growth")
+            or a_growth.get("pat_growth")
+            or q_growth.get("eps_yoy")
+            or q_growth.get("pat_yoy")
+            or a_growth.get("revenue_growth")
+            or q_growth.get("sales_yoy")
+            or q_growth.get("eps_qoq")
+        )
+        peg = self.calculator.compute_peg(pe_ratio, eps_g)
 
         # Compute annual free cash flow = OCF + CapEx (where CapEx is negative cash flow)
         fcf_annual = None
