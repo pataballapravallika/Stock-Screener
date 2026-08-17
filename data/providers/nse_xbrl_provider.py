@@ -1770,6 +1770,21 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
         qbs = self.get_quarterly_balance_sheet(symbol)
         bs = self.get_annual_balance_sheet(symbol)
         cf = self.get_annual_cashflow(symbol)
+        # Compute derived valuation metrics from official filings
+        tot_rev = (ttm_rec.get("revenue") if ttm_rec else None) or rev
+        price_sales = round(float(mcap) / float(tot_rev), 2) if (mcap and tot_rev and float(tot_rev) > 0) else None
+
+        ca_val = latest_a.get("current_assets") or latest_q.get("current_assets")
+        cl_val = latest_a.get("current_liabilities") or latest_q.get("current_liabilities")
+        current_ratio = round(float(ca_val) / float(cl_val), 2) if (ca_val and cl_val and float(cl_val) > 0) else None
+
+        tot_eq = latest_a.get("equity") or latest_q.get("equity")
+        book_value = round((float(tot_eq) * 1e7) / float(shares_out), 2) if (tot_eq and shares_out and float(shares_out) > 0) else None
+
+        tot_debt = latest_a.get("total_debt") or latest_q.get("total_debt") or latest_a.get("debt") or latest_q.get("debt") or 0.0
+        tot_cash = latest_a.get("cash_and_cash_equivalents") or latest_q.get("cash_and_cash_equivalents") or 0.0
+        ev = round(float(mcap) + float(tot_debt) - float(tot_cash), 2) if mcap else None
+
         result = {
             "Symbol": symbol,
             "Company": info.get("company_name", symbol),
@@ -1779,7 +1794,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "PE": pe_ratio,
             "PEG": peg,
             "ForwardPE": None,
-            "PriceSales": None,
+            "PriceSales": price_sales,
             "ROE": ratios.get("roe"),
             "ROCE": ratios.get("roce"),
             "ROA": ratios.get("roa"),
@@ -1819,9 +1834,9 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "FreeCashFlow": ratios.get("fcf") or fcf_annual,
             "FreeCashFlowTTM": ttm_rec.get("fcf") if ttm_rec else None,
             "FreeCashFlowAnnual": fcf_annual,
-            "CurrentRatio": None,
+            "CurrentRatio": current_ratio,
             "QuickRatio": None,
-            "BookValue": None,
+            "BookValue": book_value,
             "SharesOutstanding": shares_out,
             "FloatShares": None,
             "InstitutionsPercentHeld": sh_info.get("Institutional_Pct"),
@@ -1841,7 +1856,7 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
             "TotalCash": latest_a.get("cash_and_cash_equivalents") or latest_q.get("cash_and_cash_equivalents"),
             "EBITDA": (ebit + dda_val) if (ebit and dda_val) else None,
             "EBITDATTM": (ttm_ebit_val + dda_val) if (ttm_ebit_val and dda_val) else None,
-            "EnterpriseValue": None,
+            "EnterpriseValue": ev,
             "Piotroski": piotroski_score,
             "PiotroskiFScore": piotroski_score,
             "Piotroski_FScore": piotroski_score,
