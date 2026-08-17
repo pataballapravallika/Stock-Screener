@@ -6,7 +6,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from data.fetch_prices import fetch_prices
 from data.fetch_fundamentals import fetch_fundamentals
-from data.fetch_utils import get_quarterly_df, quarterly_eps_series
+from data.fetch_utils import get_quarterly_df, quarterly_eps_series, find_eps_label
 from scoring.technical_score import compute_technical_indicators, score_technical
 from patterns.patterns import swing_points, double_top, head_shoulders
 from fundamentals.ratios import safe_float
