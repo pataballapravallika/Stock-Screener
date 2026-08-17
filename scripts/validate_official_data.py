@@ -1,24 +1,26 @@
 #!/usr/bin/env python
-"""Validate official fundamental data against the raw XBRL / PDF filing ground truth.
+"""Validate official fundamental data against the raw XBRL filing ground truth.
 
 For each ticker, this script:
   1. Reads the latest annual or quarterly record from the DB
      (``fundamental_reports``).
-  2. Locates the raw XBRL filing XML (or PDF) on disk
+  2. Locates the raw XBRL filing XML on disk
      (``data/raw_filings/<TICKER>/<date>/filing.xml``).
-  3. Re-parses the raw filing independently using ``XBRLParser`` /
-     ``PDFParser`` to extract the canonical metric values.
-  4. Compares the "app value" (what the app would show) against the
-     "official report value" (re-parsed from the raw filing).
-  5. Prints a table:
+  3. Re-parses the raw filing independently using ``lxml`` with Indian
+     SEBI IN-CAPMKT taxonomy tag mappings to extract canonical metric
+     values.
+  4. Converts monetary values from rupees to INR crores (÷1e7).
+     EPS is left in rupees per share.
+  5. Compares the "App Value" (what the app stores in the DB) against the
+     "Official Report Value" (re-parsed from the raw filing).
+  6. Prints a table:
 
        Company | Metric | App Value | Official Report Value | Difference | Formula | Source | Period | Status
 
-  6. Also validates TTM EPS (must equal the sum of the latest 4 quarterly
+  7. Also validates TTM EPS (must equal the sum of 4 distinct quarterly
      EPS values — never trailing/forward-derived).
 
-No third-party aggregators are involved at any step.  Every metric is
-checked against the official filing document stored on disk.
+No third-party aggregators are involved at any step.
 
 Usage:
     python scripts/validate_official_data.py [--tickers RELIANCE TCS]
@@ -29,11 +31,12 @@ import csv
 import json
 import logging
 import os
+import re
 import sys
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
+from lxml import etree
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -44,11 +47,7 @@ from data.database import (
     get_ttm_record,
     get_company_info,
     get_raw_filing,
-    get_all_raw_filings,
 )
-from data.parsers.xbrl_parser import XBRLParser
-from data.parsers.pdf_parser import PDFParser
-from data.calculations.financial_calculator import FinancialCalculator
 from data.raw_filing_storage import RAW_FILINGS_DIR
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
@@ -56,210 +55,227 @@ logger = logging.getLogger("validate_official_data")
 
 DEFAULT_TICKERS = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "SBIN"]
 
-METRIC_FIELDS: List[Tuple[str, str, str, str]] = [
-    ("Revenue",      "revenue",            "Revenue",                          "INR Cr"),
-    ("PAT",          "pat",                "Net Profit After Tax",             "INR Cr"),
-    ("EPS",          "eps",                "Basic/Diluted EPS",                "INR"),
-    ("EBIT",         "ebit",               "Profit Before Tax",                "INR Cr"),
-    ("Operating Profit", "operating_profit", "Operating Profit",                "INR Cr"),
-    ("Equity",       "equity",             "Total Stockholder Equity",         "INR Cr"),
-    ("Total Assets", "assets",             "Total Assets",                     "INR Cr"),
-    ("Total Debt",   "total_debt",         "Total Borrowings + Long-term Debt", "INR Cr"),
-    ("OCF",          "operating_cash_flow", "Net Cash from Operating Activities", "INR Cr"),
-    ("CapEx",        "capex",              "Purchase of Fixed Assets",         "INR Cr"),
-    ("Share Capital", "share_capital",     "Equity Share Capital",             "INR Cr"),
-    ("Face Value",   "face_value",         "Face Value per Share",             "INR"),
-]
+ROPE_TO_CRORES = 10_000_000.0
 
-XBRL_TAG_MAP = {
+
+# Indian XBRL tag → canonical metric name.
+# Each entry maps (tag_local_name, is_eps) to canonical field.
+# Monetary values are in rupees (÷1e7 → crores).
+# EPS values are per-share in rupees (no conversion).
+INDIAN_XBRL_TAGS: Dict[str, List[Tuple[str, bool]]] = {
     "revenue": [
-        "RevenueFromOperations",
-        "Income",
-        "ifrs-full:Revenue",
-        "ifrs-full:RevenueFromContractWithCustomerExcludingAssessedTax",
-        "us-gaap:Revenues",
-        "us-gaap:SalesRevenueNet",
-        "acfr:Turnover",
+        ("RevenueFromOperations", False),
+        ("SegmentRevenueFromOperations", False),
+        ("TotalRevenue", False),
+        ("Turnover", False),
     ],
     "pat": [
-        "ProfitLossForThePeriod",
-        "ProfitLossFromOrdinaryActivitiesAfterTax",
-        "ProfitLossAfterTaxesMinorityInterestAndShareOfProfitLossOfAssociates",
-        "ProfitLossForPeriod",
-        "ProfitLossForPeriodFromContinuingOperations",
-        "ifrs-full:ProfitLoss",
-        "ifrs-full:NetIncomeLoss",
-        "us-gaap:NetIncomeLoss",
-        "us-gaap:NetIncomeLossAvailableToCommonStockholdersDiluted",
-    ],
-    "eps": [
-        "DilutedEarningsPerShareAfterExtraordinaryItems",
-        "BasicEarningsPerShareAfterExtraordinaryItems",
-        "DilutedEarningsPerShareBeforeExtraordinaryItems",
-        "BasicEarningsPerShareBeforeExtraordinaryItems",
-        "BasicEarningsLossPerShareFromContinuingAndDiscontinuedOperations",
-        "BasicEarningsLossPerShareFromContinuingOperations",
-        "BasicEarningsLossPerShare",
-        "ifrs-full:BasicEarningsLossPerShare",
-        "us-gaap:EarningsPerShareDiluted",
-        "us-gaap:EarningsPerShareBasic",
+        ("ProfitLossForPeriod", False),
+        ("ProfitLossForThePeriod", False),
+        ("ProfitLossFromOrdinaryActivitiesAfterTax", False),
+        ("ProfitLossAfterTaxesMinorityInterestAndShareOfProfitLossOfAssociates", False),
+        ("NetProfit", False),
+        ("ProfitAfterTax", False),
     ],
     "ebit": [
-        "ProfitBeforeExceptionalItemsAndTax",
-        "ProfitLossFromOrdinaryActivitiesBeforeTax",
-        "ProfitBeforeTax",
-        "OperatingProfitBeforeProvisionAndContingencies",
-        "ifrs-full:ProfitLossBeforeTax",
-        "us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxes",
-        "us-gaap:IncomeLossBeforeIncomeTaxes",
+        ("ProfitBeforeExceptionalItemsAndTax", False),
+        ("ProfitBeforeTax", False),
+        ("ProfitLossFromOrdinaryActivitiesBeforeTax", False),
+        ("SegmentProfitBeforeTax", False),
+        ("EBIT", False),
     ],
-    "operating_profit": [
-        "ProfitBeforeExceptionalItemsAndTax",
-        "ProfitLossFromOrdinaryActivitiesBeforeTax",
-        "ProfitBeforeTax",
-        "OperatingProfitBeforeProvisionAndContingencies",
-        "ifrs-full:OperatingProfitLoss",
-        "us-gaap:OperatingIncomeLoss",
+    "eps": [
+        ("DilutedEarningsLossPerShareFromContinuingOperations", True),
+        ("DilutedEarningsPerShareBeforeExtraordinaryItems", True),
+        ("DilutedEarningsLossPerShareFromContinuingAndDiscontinuedOperations", True),
+        ("DilutedEarningsPerShareAfterExtraordinaryItems", True),
+        ("BasicEarningsLossPerShareFromContinuingOperations", True),
+        ("BasicEarningsPerShareBeforeExtraordinaryItems", True),
+        ("BasicEarningsLossPerShareFromContinuingAndDiscontinuedOperations", True),
+        ("BasicEarningsPerShareAfterExtraordinaryItems", True),
     ],
-    "equity": [
-        "ifrs-full:Equity",
-        "ifrs-full:EquityAttributableToOwnersOfParent",
-        "us-gaap:StockholdersEquity",
-        "Equity",
-    ],
-    "assets": [
-        "NetSegmentAssets",
-        "SegmentAssets",
-        "ifrs-full:Assets",
-        "us-gaap:Assets",
-    ],
-    "operating_cash_flow": [
-        "NetCashFlowsFromUsedInOperatingActivities",
-        "ifrs-full:NetCashFlowsFromUsedInOperatingActivities",
-        "us-gaap:NetCashProvidedByUsedInOperatingActivities",
-    ],
-    "capex": [
-        "PaymentsToAcquirePropertyPlantAndEquipment",
-        "ifrs-full:PaymentsToAcquirePropertyPlantAndEquipment",
-        "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment",
-        "ifrs-full:PurchaseOfPropertyPlantAndEquipment",
+    "diluted_eps": [
+        ("DilutedEarningsLossPerShareFromContinuingOperations", True),
+        ("DilutedEarningsPerShareBeforeExtraordinaryItems", True),
+        ("DilutedEarningsLossPerShareFromContinuingAndDiscontinuedOperations", True),
+        ("DilutedEarningsPerShareAfterExtraordinaryItems", True),
+        ("BasicEarningsLossPerShareFromContinuingOperations", True),
+        ("BasicEarningsPerShareBeforeExtraordinaryItems", True),
     ],
     "share_capital": [
-        "PaidUpValueOfEquityShareCapital",
-        "ifrs-full:EquityCapital",
-        "us-gaap:CommonStock",
-        "ifrs-full:ShareCapital",
+        ("PaidUpValueOfEquityShareCapital", False),
+        ("EquityShareCapital", False),
+        ("EquityCapital", False),
     ],
     "face_value": [
-        "FaceValueOfEquityShareCapital",
-        "ifrs-full:FaceValue",
-        "acfr:FaceValue",
+        ("FaceValueOfEquityShareCapital", True),
+        ("FaceValueOfEquityShares", True),
+    ],
+    "operating_profit": [
+        ("ProfitBeforeExceptionalItemsAndTax", False),
+        ("OperatingProfit", False),
+        ("OperatingProfitBeforeExceptionalItemsAndTax", False),
+        ("ProfitBeforeTax", False),
+        ("ProfitLossFromOrdinaryActivitiesBeforeTax", False),
+        ("SegmentProfitBeforeTax", False),
+    ],
+    "depreciation_amortization": [
+        ("DepreciationDepletionAndAmortisationExpense", False),
+        ("DepreciationAndAmortization", False),
+    ],
+    "total_assets": [
+        ("SegmentAssets", False),
+        ("NetSegmentAssets", False),
+        ("TotalAssets", False),
+        ("Assets", False),
+    ],
+    "total_liabilities": [
+        ("SegmentLiabilities", False),
+        ("NetSegmentLiabilities", False),
+        ("TotalLiabilities", False),
+        ("Liabilities", False),
+    ],
+    "interest_income": [
+        ("InterestEarned", False),
+        ("RevenueOnInvestments", False),
+    ],
+    "interest_expense": [
+        ("InterestExpended", False),
+        ("FinanceCosts", False),
+        ("InterestExpense", False),
+    ],
+    "interest_on_advances": [
+        ("InterestOrDiscountOnAdvancesOrBills", False),
+    ],
+    "interest_from_rbi": [
+        ("InterestOnBalancesWithReserveBankOfIndiaAndOtherInterBankFunds", False),
+    ],
+    "provisions": [
+        ("ProvisionsOtherThanTaxAndContingencies", False),
+        ("Provisions", False),
+    ],
+    "gross_npa": [
+        ("GrossNonPerformingAssets", False),
+    ],
+    "npa": [
+        ("NonPerformingAssets", False),
+    ],
+    "gross_npa_pct": [
+        ("PercentageOfGrossNpa", True),
+    ],
+    "npa_pct": [
+        ("PercentageOfNpa", True),
+    ],
+    "total_income": [
+        ("Income", False),
+        ("TotalIncome", False),
+    ],
+    "operating_expenses": [
+        ("OperatingExpenses", False),
+    ],
+    "other_interest": [
+        ("OtherInterest", False),
+    ],
+    "segment_revenue": [
+        ("SegmentRevenue", False),
+    ],
+    "segment_profit_before_tax": [
+        ("SegmentProfitLossBeforeTaxAndFinanceCosts", False),
+    ],
+    "segment_finance_costs": [
+        ("SegmentFinanceCosts", False),
+    ],
+    "unallocable_assets": [
+        ("UnAllocableAssets", False),
+    ],
+    "unallocable_liabilities": [
+        ("UnAllocableLiabilities", False),
     ],
 }
 
+# Context IDs:
+#   OneD  = One duration (current quarter income statement)
+#   OneI  = One instant  (current quarter balance sheet)
+#   FourD = Four durations (YTD / annual income statement)
+#   FourI = Four instants  (annual balance sheet)
+INCOME_CONTEXTS = ("OneD", "FourD")
+BALANCE_CONTEXTS = ("OneI", "FourI")
 
-def _parse_raw_filing(symbol: str, report_date: str, period: Optional[str] = None) -> Dict[str, Any]:
-    """Parse the raw filing from disk and return canonical metric dict."""
-    raw = get_raw_filing(symbol, report_date, period)
-    if not raw:
-        filing = _find_latest_raw_filing(symbol)
-        if not filing:
-            return {}
-        raw = filing
 
-    file_path = raw.get("file_path")
-    source_type = raw.get("source_type") or raw.get("source") or ""
-    if not file_path or not os.path.isfile(file_path):
-        return {}
+def _is_bank(company_name: str, sector: str) -> bool:
+    """Determine if a company is a banking/financial institution."""
+    text = f"{company_name or ''} {sector or ''}".lower()
+    bank_keywords = ["bank", "financial", "finance", "hdfc", "sbi", "icici", "kotak", "yesbank"]
+    return any(kw in text for kw in bank_keywords)
 
-    result: Dict[str, Any] = {"source_type": source_type, "file_path": file_path, "source_url": raw.get("source_url", "")}
 
-    if file_path.lower().endswith((".xml", ".xbrl", ".html", ".htm")):
-        try:
-            parsed = XBRLParser.parse_file(file_path)
-            result.update({k: v for k, v in parsed.items() if v is not None})
-        except Exception as e:
-            result["_parse_error"] = str(e)
-    elif file_path.lower().endswith(".pdf"):
-        try:
-            pdf_parser = PDFParser()
-            tables = pdf_parser.extract_tables_from_file(file_path) if hasattr(pdf_parser, "extract_tables_from_file") else []
-            if not tables:
-                tables = []
-                with open(file_path, "rb") as f:
-                    tables = pdf_parser.extract_tables_from_bytes(f.read()) or []
-            for df in tables:
-                if df is None or df.empty or len(df.columns) < 2:
+def _parse_indian_xbrl(file_path: str) -> Dict[str, Any]:
+    """Parse an Indian SEBI IN-CAPMKT XBRL filing with lxml.
+
+    Returns a dict of canonical metric → value.  Monetary values are
+    converted to INR crores; EPS and face value are left in rupees.
+    """
+    result: Dict[str, Any] = {}
+    if not os.path.isfile(file_path):
+        return result
+
+    try:
+        parser = etree.XMLParser(recover=True, huge_tree=True)
+        with open(file_path, "rb") as f:
+            data = f.read()
+        root = etree.fromstring(data, parser)
+    except Exception as e:
+        result["_parse_error"] = str(e)
+        return result
+
+    tag_to_values: Dict[str, List[Tuple[str, str]]] = {}
+    for elem in root.iter():
+        tag = elem.tag
+        if not isinstance(tag, str) or "}" not in tag:
+            continue
+        local = tag.split("}")[-1]
+        ctx = elem.get("contextRef", "")
+        val = (elem.text or "").strip()
+        if not ctx or not val or len(val) <= 1:
+            continue
+        tag_to_values.setdefault(local, []).append((ctx, val))
+
+    for canonical, tag_list in INDIAN_XBRL_TAGS.items():
+        for tag_name, is_eps in tag_list:
+            if tag_name not in tag_to_values:
+                continue
+            for ctx, raw_val in tag_to_values[tag_name]:
+                fval = _safe_float(raw_val)
+                if fval is None:
                     continue
-                df = df.set_index(df.columns[0])
-                idx = [str(i).lower().strip() for i in df.index]
-                for field, tags in XBRL_TAG_MAP.items():
-                    for tag in tags:
-                        local = tag.split(":")[-1].lower()
-                        for i_label in idx:
-                            if local in i_label:
-                                val = df.loc[i_label, df.columns[0]]
-                                fval = _safe_float(str(val))
-                                if fval is not None and result.get(field) is None:
-                                    result[field] = fval
-                                break
-        except Exception as e:
-            result["_parse_error"] = str(e)
 
-    return result
+                if canonical in ("total_assets", "total_liabilities"):
+                    if ctx not in BALANCE_CONTEXTS:
+                        continue
+                else:
+                    if ctx not in INCOME_CONTEXTS:
+                        continue
 
+                if not is_eps and canonical not in ("face_value", "gross_npa_pct", "npa_pct",
+                                                       "debt_equity", "nii", "nim"):
+                    fval = fval / ROPE_TO_CRORES
 
-def _find_latest_raw_filing(symbol: str) -> Optional[Dict[str, Any]]:
-    """Find the most recent raw filing for a ticker from DB or disk."""
-    df = get_all_raw_filings(symbol)
-    if not df.empty:
-        return df.iloc[0].to_dict()
-
-    ticker_dir = os.path.join(RAW_FILINGS_DIR, symbol.upper())
-    if not os.path.isdir(ticker_dir):
-        return None
-
-    latest_dir = None
-    latest_date = ""
-    for date_dir in os.listdir(ticker_dir):
-        full = os.path.join(ticker_dir, date_dir)
-        if os.path.isdir(full) and date_dir > latest_date:
-            latest_date = date_dir
-            latest_dir = full
-
-    if not latest_dir:
-        return None
-
-    filing_path = os.path.join(latest_dir, "filing.xml")
-    if not os.path.isfile(filing_path):
-        for ext in (".pdf", ".html", ".htm"):
-            alt = os.path.join(latest_dir, f"filing{ext}")
-            if os.path.isfile(alt):
-                filing_path = alt
+                if result.get(canonical) is None:
+                    result[canonical] = fval
                 break
 
-    meta_path = os.path.join(latest_dir, "metadata.json")
-    meta = {}
-    if os.path.isfile(meta_path):
-        try:
-            with open(meta_path, "r") as f:
-                meta = json.load(f)
-        except Exception:
-            pass
-
-    return {
-        "file_path": filing_path,
-        "source_type": meta.get("source_type", "nse_xbrl"),
-        "source_url": meta.get("source_url", ""),
-        **meta,
-    }
+    result["_source_type"] = "nse_xbrl"
+    return result
 
 
 def _safe_float(val: Any) -> Optional[float]:
     if val is None:
         return None
     try:
-        f = float(str(val).replace(",", "").strip())
+        s = str(val).strip().replace(",", "")
+        if not s or s.lower() in ("n/a", "none", "nan", "-", "--"):
+            return None
+        f = float(s)
         if f != f or f == float("inf"):
             return None
         return f
@@ -267,11 +283,96 @@ def _safe_float(val: Any) -> Optional[float]:
         return None
 
 
-def _normalize_value(val: Any) -> Any:
+def _find_filing_for_date(symbol: str, report_date: str) -> Optional[str]:
+    """Find the raw filing XML on disk for a given symbol and report date.
+
+    Tries the DB raw_filings table first, then searches the disk
+    directory for a matching ISO date directory.
+    """
+    if not report_date:
+        return None
+
+    try:
+        iso_date = str(pd.to_datetime(report_date).strftime("%Y-%m-%d"))
+    except Exception:
+        iso_date = report_date
+
+    ticker_dir = os.path.join(RAW_FILINGS_DIR, symbol.upper())
+    if os.path.isdir(ticker_dir):
+        for ext in (".xml", ".xbrl", ".html", ".htm"):
+            path = os.path.join(ticker_dir, iso_date, f"filing{ext}")
+            if os.path.isfile(path):
+                return path
+        for ext in (".xml", ".pdf"):
+            path = os.path.join(ticker_dir, iso_date, f"filing{ext}")
+            if os.path.isfile(path):
+                return path
+
+    meta = get_raw_filing(symbol, iso_date, None)
+    if meta and meta.get("file_path"):
+        fp = meta["file_path"]
+        if os.path.isfile(fp):
+            return fp
+
+    if os.path.isdir(ticker_dir):
+        dirs = sorted(
+            [d for d in os.listdir(ticker_dir) if os.path.isdir(os.path.join(ticker_dir, d))],
+            reverse=True,
+        )
+        iso_dirs = [d for d in dirs if re.match(r"\d{4}-\d{2}-\d{2}", d)]
+        if iso_dirs:
+            for ext in (".xml", ".xbrl", ".html", ".htm"):
+                path = os.path.join(ticker_dir, iso_dirs[0], f"filing{ext}")
+                if os.path.isfile(path):
+                    return path
+        else:
+            for d in dirs:
+                for ext in (".xml", ".pdf", ".html", ".htm"):
+                    path = os.path.join(ticker_dir, d, f"filing{ext}")
+                    if os.path.isfile(path):
+                        return path
+
+    return None
+
+
+def _normalize_value(val: Any) -> Optional[float]:
     if val is None:
         return None
     f = _safe_float(val)
     return f
+
+
+METRIC_FIELDS: List[Tuple[str, str, str, str]] = [
+    ("Revenue",          "revenue",            "Revenue from Operations",                    "INR Cr"),
+    ("PAT",              "pat",                "Profit after tax",                           "INR Cr"),
+    ("EPS",              "eps",                "Basic EPS (₹/share)",                        "INR"),
+    ("Diluted EPS",      "diluted_eps",        "Diluted EPS (₹/share)",                      "INR"),
+    ("EBIT",             "ebit",               "Profit Before Tax",                          "INR Cr"),
+    ("Operating Profit",   "operating_profit",   "Operating Profit / EBIT",                    "INR Cr"),
+    ("Share Capital",    "share_capital",      "Paid-up Equity Share Capital",               "INR Cr"),
+    ("Face Value",       "face_value",         "Face Value per Share",                       "INR"),
+    ("Depreciation",     "depreciation_amortization", "Depreciation & Amortisation",        "INR Cr"),
+    ("Total Assets",     "total_assets",       "Total Assets (balance sheet)",             "INR Cr"),
+    ("Total Liabilities", "total_liabilities", "Total Liabilities (balance sheet)",         "INR Cr"),
+]
+
+BANK_METRIC_FIELDS: List[Tuple[str, str, str, str]] = METRIC_FIELDS + [
+    ("Interest Earned",    "interest_income",       "Interest Earned",                     "INR Cr"),
+    ("Interest Expense",   "interest_expense",      "Interest Expended",                   "INR Cr"),
+    ("Interest on Advances", "interest_on_advances", "Interest on Advances/Bills",         "INR Cr"),
+    ("Interest from RBI",  "interest_from_rbi",     "Interest on RBI balances",             "INR Cr"),
+    ("Other Interest",     "other_interest",        "Other Interest Income",               "INR Cr"),
+    ("Provisions",         "provisions",            "Provisions (excluding tax)",           "INR Cr"),
+    ("Gross NPA",          "gross_npa",             "Gross Non-Performing Assets",          "INR Cr"),
+    ("Gross NPA %",        "gross_npa_pct",         "Gross NPA as % of Advances",           "%"),
+    ("NPA",                "npa",                   "Net Non-Performing Assets",            "INR Cr"),
+    ("NPA %",              "npa_pct",               "Net NPA as % of Advances",             "%"),
+    ("Total Income",       "total_income",          "Total Income (Interest + Other)",   "INR Cr"),
+    ("Operating Expenses", "operating_expenses",    "Operating Expenses",                   "INR Cr"),
+    ("Segment Revenue",    "segment_revenue",       "Total Segment Revenue",                "INR Cr"),
+    ("Unalloc. Assets",    "unallocable_assets",    "Unallocated Assets",                   "INR Cr"),
+    ("Unalloc. Liabilities", "unallocable_liabilities", "Unallocated Liabilities",          "INR Cr"),
+]
 
 
 def validate_ticker(symbol: str) -> List[Dict[str, Any]]:
@@ -280,6 +381,8 @@ def validate_ticker(symbol: str) -> List[Dict[str, Any]]:
 
     company_info = get_company_info(symbol)
     company_name = company_info.get("company_name") or symbol
+    sector = company_info.get("sector") or "N/A"
+    is_bank = _is_bank(company_name, sector)
 
     a_df = get_latest_annual_reports(symbol, limit=1)
     q_df = get_latest_quarterly_reports(symbol, limit=1)
@@ -298,15 +401,9 @@ def validate_ticker(symbol: str) -> List[Dict[str, Any]]:
         fy = db_rec.get("financial_year")
     else:
         rows.append({
-            "Ticker": symbol,
-            "Company": company_name,
-            "Metric": "ALL",
-            "App Value": "N/A",
-            "Official Report Value": "N/A",
-            "Difference": "N/A",
-            "Formula": "N/A",
-            "Source": "N/A",
-            "Period": "N/A",
+            "Ticker": symbol, "Company": company_name, "Metric": "ALL",
+            "App Value": "N/A", "Official Report Value": "N/A", "Difference": "N/A",
+            "Formula": "N/A", "Source": "N/A", "Period": "N/A",
             "Status": "NOT VERIFIED — no data in DB",
         })
         return rows
@@ -318,27 +415,38 @@ def validate_ticker(symbol: str) -> List[Dict[str, Any]]:
     else:
         period_str = period_type or "N/A"
 
-    raw = _parse_raw_filing(symbol, report_date, period_type)
+    filing_path = _find_filing_for_date(symbol, report_date)
+    source_url = db_rec.get("source_url") or "N/A"
+    source_type = db_rec.get("source_type") or db_rec.get("source") or "N/A"
 
-    db_source = db_rec.get("source") or db_rec.get("source_type") or "N/A"
-    source_url = db_rec.get("source_url") or raw.get("source_url") or "N/A"
-    raw_source_type = raw.get("source_type", "N/A")
+    if filing_path and filing_path.lower().endswith((".xml", ".xbrl", ".html", ".htm")):
+        raw = _parse_indian_xbrl(filing_path)
+    else:
+        raw = {}
 
-    for display_name, db_field, formula, unit in METRIC_FIELDS:
+    fields = BANK_METRIC_FIELDS if is_bank else METRIC_FIELDS
+
+    for display_name, db_field, formula, unit in fields:
         app_val = _normalize_value(db_rec.get(db_field))
-        raw_val = _normalize_value(raw.get(db_field))
+        raw_val = _normalize_value(
+            raw.get(db_field) or raw.get(db_field.replace("_", ""))
+        )
 
         if app_val is not None and raw_val is not None:
+            if unit == "INR":
+                threshold = 0.001
+            elif unit == "%":
+                threshold = 0.01
+            else:
+                threshold = max(abs(raw_val) * 0.005, 0.01)
             diff = app_val - raw_val
-            if abs(diff) < 0.01:
+            if abs(diff) <= threshold:
                 status = "MATCH"
-            elif abs(diff) / max(abs(raw_val), 1) < 0.01:
-                status = "MATCH (rounding)"
             else:
                 status = "MISMATCH"
-            diff_str = f"{diff:+.4f}" if db_field != "face_value" else f"{diff:+.4f}"
+            diff_str = f"{diff:+.4f}"
         elif app_val is not None and raw_val is None:
-            status = "APP_HAS_VALUE (raw file not found or metric not parseable)"
+            status = "APP_HAS_VALUE (raw filing metric not found)"
             diff_str = "N/A"
         elif app_val is None and raw_val is not None:
             status = "MISSING IN DB"
@@ -350,8 +458,6 @@ def validate_ticker(symbol: str) -> List[Dict[str, Any]]:
         app_str = f"{app_val:,.4f}" if app_val is not None else "N/A"
         raw_str = f"{raw_val:,.4f}" if raw_val is not None else "N/A"
 
-        source_label = db_source if db_source != "N/A" else raw_source_type
-
         rows.append({
             "Ticker": symbol,
             "Company": company_name,
@@ -360,7 +466,8 @@ def validate_ticker(symbol: str) -> List[Dict[str, Any]]:
             "Official Report Value": raw_str,
             "Difference": diff_str,
             "Formula": formula,
-            "Source": source_label,
+            "Source": source_type,
+            "Report URL": source_url,
             "Period": period_str,
             "Status": status,
         })
@@ -398,36 +505,30 @@ def validate_ticker(symbol: str) -> List[Dict[str, Any]]:
                     "App Value": f"{ttm_eps:,.4f}",
                     "Official Report Value": f"{ttm_eps_calc:,.4f}",
                     "Difference": f"{ttm_eps - ttm_eps_calc:+.4f}",
-                    "Formula": "Sum of 4 most recent quarterly EPS",
+                    "Formula": "Sum of 4 distinct quarterly EPS",
                     "Source": ttm_rec.get("source", "ttm_from_reports"),
                     "Period": period_str,
                     "Status": ttm_status,
                 })
             else:
                 rows.append({
-                    "Ticker": symbol,
-                    "Company": company_name,
+                    "Ticker": symbol, "Company": company_name,
                     "Metric": "TTM EPS",
                     "App Value": f"{ttm_eps:,.4f}" if ttm_eps is not None else "N/A",
-                    "Official Report Value": f"{sum(eps_vals):,.4f}" if eps_vals else "N/A",
-                    "Difference": "N/A",
-                    "Formula": "Sum of 4 most recent quarterly EPS",
+                    "Official Report Value": "N/A", "Difference": "N/A",
+                    "Formula": "Sum of 4 distinct quarterly EPS",
                     "Source": ttm_rec.get("source", "ttm_from_reports"),
-                    "Period": period_str,
-                    "Status": "INSUFFICIENT DATA (<4 quarterly EPS)",
+                    "Period": period_str, "Status": "INSUFFICIENT DATA (<4 quarterly EPS)",
                 })
         else:
             rows.append({
-                "Ticker": symbol,
-                "Company": company_name,
+                "Ticker": symbol, "Company": company_name,
                 "Metric": "TTM EPS",
                 "App Value": f"{ttm_eps:,.4f}" if ttm_eps is not None else "N/A",
-                "Official Report Value": "N/A",
-                "Difference": "N/A",
-                "Formula": "Sum of 4 most recent quarterly EPS",
+                "Official Report Value": "N/A", "Difference": "N/A",
+                "Formula": "Sum of 4 distinct quarterly EPS",
                 "Source": ttm_rec.get("source", "ttm_from_reports"),
-                "Period": period_str,
-                "Status": "INSUFFICIENT QUARTERLY REPORTS",
+                "Period": period_str, "Status": "INSUFFICIENT QUARTERLY REPORTS",
             })
 
     return rows
@@ -444,25 +545,31 @@ def main():
     init_db()
 
     print("=" * 120)
-    print("OFFICIAL DATA VALIDATION — App values vs raw filing ground truth")
-    print("No third-party aggregators involved")
+    print("OFFICIAL DATA VALIDATION")
+    print(f"Companies: {args.tickers}")
+    print("App values (DB) vs official report values (re-parsed raw XBRL)")
     print("=" * 120)
 
     all_rows: List[Dict[str, Any]] = []
 
     for symbol in args.tickers:
-        print(f"\n--- {symbol} ---")
-        rows = validate_ticker(symbol)
+        clean = symbol.strip().upper()
+        for suffix in (".NS", ".BO"):
+            if clean.endswith(suffix):
+                clean = clean[:-len(suffix)]
+                break
+        print(f"\n--- {clean} ---")
+        rows = validate_ticker(clean)
         all_rows.extend(rows)
 
-    print(f"\n{'Company':<20} | {'Metric':<20} | {'App Value':>15} | {'Official Report Value':>22} | {'Diff':>12} | {'Formula':<35} | {'Source':<16} | {'Period':<12} | {'Status'}")
-    print(f"{'-'*22}-+-{'-'*22}-+-{'-'*17}-+-{'-'*24}-+-{'-'*14}-+-{'-'*37}-+-{'-'*18}-+-{'-'*14}-+-{'-'*40}")
+    print(f"\n{'Company':<20} | {'Metric':<18} | {'App Value':>14} | {'Official Report Value':>22} | {'Diff':>10} | {'Source':<12} | {'Period':<12} | {'Status'}")
+    print(f"{'-'*22}-+-{'-'*20}-+-{'-'*16}-+-{'-'*24}-+-{'-'*12}-+-{'-'*14}-+-{'-'*14}-+-{'-'*40}")
     for r in all_rows:
-        print(f"{str(r['Company']):<20} | {str(r['Metric']):<20} | {str(r['App Value']):>15} | "
-              f"{str(r['Official Report Value']):>22} | {str(r['Difference']):>12} | "
-              f"{str(r['Formula']):<35} | {str(r['Source']):<16} | {str(r['Period']):<12} | {str(r['Status'])}")
+        print(f"{str(r['Company']):<20} | {str(r['Metric']):<18} | {str(r['App Value']):>14} | "
+              f"{str(r['Official Report Value']):>22} | {str(r['Difference']):>10} | "
+              f"{str(r['Source']):<12} | {str(r['Period']):<12} | {str(r['Status'])}")
 
-    status_counts = {}
+    status_counts: Dict[str, int] = {}
     for r in all_rows:
         s = r["Status"]
         status_counts[s] = status_counts.get(s, 0) + 1
@@ -475,15 +582,33 @@ def main():
 
     mismatches = sum(1 for r in all_rows if r["Status"] == "MISMATCH")
     matches = sum(1 for r in all_rows if r["Status"] == "MATCH")
-    print(f"\n  Total metrics checked: {len(all_rows)}")
+    print(f"\n  Total rows: {len(all_rows)}")
     print(f"  Matches: {matches}")
     print(f"  Mismatches: {mismatches}")
-    print(f"  Overall: {'PASS' if mismatches == 0 else 'REVIEW NEEDED'}")
+    print(f"\n  Result: {'PASS — all comparable metrics match' if mismatches == 0 else 'REVIEW NEEDED — mismatches detected'}")
 
     if args.output:
         df = pd.DataFrame(all_rows)
         df.to_csv(args.output, index=False, quoting=csv.QUOTE_ALL)
         print(f"\n  Report saved to: {args.output}")
+
+    critical_metrics = ["Revenue", "PAT", "EPS", "TTM EPS"]
+    print("\n--- Critical Metrics Check ---")
+    for t in args.tickers:
+        clean = t.strip().upper()
+        for suffix in (".NS", ".BO"):
+            if clean.endswith(suffix):
+                clean = clean[:-len(suffix)]
+                break
+        ticker_rows = [r for r in all_rows if r["Ticker"] == clean]
+        for cm in critical_metrics:
+            row = next((r for r in ticker_rows if r["Metric"] == cm), None)
+            if row:
+                val = row["App Value"] if row["App Value"] != "N/A" else row["Official Report Value"]
+                status_icon = "OK" if row["Status"] in ("MATCH",) else "WARN" if row["Status"].startswith("APP_HAS_VALUE") else "FAIL"
+                print(f"  [{status_icon}] {clean} {cm}: {val} ({row['Status']})")
+            else:
+                print(f"  [FAIL] {clean} {cm}: not found in validation output")
 
     return all_rows
 
