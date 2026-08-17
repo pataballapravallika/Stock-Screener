@@ -1,0 +1,15 @@
+{
+  "ticker": "TMPV",
+  "company": "Tata Motors Passenger Vehicles Limited",
+  "report_date": "2025-09-30",
+  "period": "quarterly",
+  "quarter": 2,
+  "financial_year": 2026,
+  "consolidated": true,
+  "source_url": "https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1574923_14112025041850_WEB.xml",
+  "source_type": "nse_xbrl",
+  "file_path": "D:\\career-projects\\Stock_Screener\\data\\raw_filings\\TMPV\\2025-09-30\\filing.xml",
+  "file_hash": "0b15b25ebbd5de3e662d5305b9890f931dd6c5b7a951717eb8f88fc43d401d32",
+  "downloaded_at": "2026-08-17T17:18:46.071515+00:00",
+  "verification_status": "verified"
+}

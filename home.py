@@ -46,6 +46,12 @@ COMPANIES = {
 # 3. DATA FETCHING
 # ============================================================
 
+TICKER_FALLBACKS = {
+    "TATAMOTORS.NS": ["TMPV.NS", "TATAMOTORS.BO"],
+    "TATAMOTORS": ["TMPV.NS", "TATAMOTORS.BO"],
+}
+
+
 @st.cache_data(ttl=3600)
 def fetch_stock_data(symbol, period="max"):
 
@@ -55,15 +61,22 @@ def fetch_stock_data(symbol, period="max"):
             or clean.startswith(".") or any(c in clean for c in ["-", "_"])):
         clean = f"{clean}.NS"
 
-    try:
+    symbols_to_try = [clean]
+    if clean in TICKER_FALLBACKS:
+        symbols_to_try.extend(TICKER_FALLBACKS[clean])
 
-        df = yf.download(
-            clean,
-            period=period,
-            interval="1d",
-            auto_adjust=False,
-            progress=False
-        )
+    try:
+        df = pd.DataFrame()
+        for try_sym in symbols_to_try:
+            df = yf.download(
+                try_sym,
+                period=period,
+                interval="1d",
+                auto_adjust=False,
+                progress=False
+            )
+            if not df.empty:
+                break
 
         if df.empty:
             return pd.DataFrame()

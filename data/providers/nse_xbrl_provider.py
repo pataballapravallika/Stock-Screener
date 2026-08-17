@@ -29,6 +29,10 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import requests
+try:
+    from curl_cffi import requests as cffi_requests
+except ImportError:
+    cffi_requests = None
 
 from data.providers.errors import NSEAccessDenied, NSETimeout, NSERequestError
 from data.raw_filing_storage import store_raw_filing, load_raw_filing
@@ -172,7 +176,10 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
 
     def _get_session(self):
         if self._session is None:
-            s = requests.Session()
+            if cffi_requests is not None:
+                s = cffi_requests.Session(impersonate="chrome")
+            else:
+                s = requests.Session()
             s.headers.update(self.HEADERS)
             self._seed_nse_session(s)
             self._session = s
@@ -799,11 +806,14 @@ class NSEXBRLProvider(BaseFundamentalProvider, ReportIngestionMixin):
     def _fetch_filings_nsexbrl(self, symbol: str, issuer: str, max_filings: int = 5) -> List[Any]:
         try:
             from nse_xbrl import NSEClient
-            # Do NOT pass our session cookies to NSEClient — the package
-            # seeds its own session with the correct Akamai-compatible URL
-            # sequence.  Passing stale cookies from a blocked session
-            # interferes with the package's internal session management.
-            client = NSEClient()
+            sess = self._get_session()
+            cookies_dict = {}
+            if hasattr(sess, "cookies") and sess.cookies:
+                if hasattr(sess.cookies, "get_dict"):
+                    cookies_dict = sess.cookies.get_dict()
+                else:
+                    cookies_dict = dict(sess.cookies)
+            client = NSEClient(cookies=cookies_dict)
             filings = client.fetch_financials(symbol, issuer, max_filings=max_filings)
             enriched = []
             for f in filings:
